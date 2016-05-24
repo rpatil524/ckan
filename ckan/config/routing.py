@@ -99,6 +99,10 @@ def make_map():
     map.connect('*url', controller='home', action='cors_options',
                 conditions=OPTIONS, ckan_core=True)
 
+    map.connect('/test_flask_plus_pylons', controller='home',
+                action='test_flask_plus_pylons',
+                ckan_core=True)
+
     # CUSTOM ROUTES HERE
     for plugin in p.PluginImplementations(p.IRoutes):
         map = plugin.before_map(map)

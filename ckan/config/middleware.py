@@ -249,7 +249,7 @@ def make_flask_stack(conf, **app_conf):
     Pylons used """
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    app = CKANFlask(__name__)
+    app = flask_app = CKANFlask(__name__)
     app.template_folder = os.path.join(root, 'templates')
     app.app_ctx_globals_class = CKAN_AppCtxGlobals
 
@@ -346,6 +346,9 @@ def make_flask_stack(conf, **app_conf):
         logging.WARN,  # ignored
         who_parser.remote_user_key
     )
+
+    # Add a reference to the actual Flask app so it's easier to access
+    setattr(app, '_flask_app', flask_app)
 
     return app
 
@@ -498,7 +501,18 @@ class AskAppDispatcherMiddleware(WSGIParty):
 
         log.debug('Serving request via {0} app'.format(app_name))
         environ['ckan.app'] = app_name
-        return self.apps[app_name](environ, start_response)
+        if app_name == 'flask_app':
+            return self.apps[app_name](environ, start_response)
+        else:
+            # Although this request will be served by Pylons we still
+            # need an application context and a request context in order
+            # for the Flask URL builder to work
+
+            flask_app = self.apps['flask_app']._flask_app
+
+            with flask_app.app_context():
+                with flask_app.test_request_context(environ_overrides=environ):
+                    return self.apps[app_name](environ, start_response)
 
 
 class RootPathMiddleware(object):

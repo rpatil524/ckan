@@ -10,6 +10,9 @@ import ckan.lib.helpers as h
 
 from ckan.common import _, g, c
 
+from ckan.common import request, response, json
+from ckan.lib.helpers import url_for
+
 CACHE_PARAMETERS = ['__cache', '__no_cache__']
 
 
@@ -103,3 +106,44 @@ class HomeController(base.BaseController):
     def cors_options(self, url=None):
         # just return 200 OK and empty data
         return ''
+
+    def test_flask_plus_pylons(self):
+        # TODO: Move this to a test
+        response.headers['Content-Type'] = 'application/json;charset=utf-8'
+
+        url_pylons = url_for(controller='package', action='edit', id='test-id')
+
+        url_pylons_external = url_for(controller='package', action='edit', id='test-id', qualified=True)
+
+        url_flask_old_syntax = url_for(
+            controller='api', action='action', ver='3',
+            logic_function='package_show', id='test-id')
+
+        url_flask_external_old_syntax = url_for(
+            controller='api', action='action', ver='3',
+            logic_function='package_show', id='test-id', qualified=True)
+
+        url_flask_new_syntax = url_for(
+            'api.action', ver=3,
+            logic_function='package_search', q='-name:test-*',
+            sort='name desc')
+
+        url_flask_external_new_syntax = url_for(
+            'api.action', ver=3,
+            logic_function='package_search', q='-name:test-*',
+            sort='name desc', _external=True)
+
+        out = {
+            'c_user': c.user,
+            'lang_on_environ_CKAN_LANG': request.environ.get('CKAN_LANG'),
+            'translated_string': _('Editor'),
+            'url_from_pylons': url_pylons,
+            'url_from_pylons_external': url_pylons_external,
+            'url_from_flask_old_syntax': url_flask_old_syntax,
+            'url_from_flask_new_syntax': url_flask_new_syntax,
+            'url_from_flask_external_old_syntax': url_flask_external_old_syntax,
+            'url_from_flask_external_new_syntax': url_flask_external_new_syntax,
+
+        }
+
+        return json.dumps(out)

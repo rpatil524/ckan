@@ -24,12 +24,13 @@ except ImportError:
 def is_flask():
     '''
     A centralised way to determine whether to return flask versions of common
-    functions, or Pylon versions.
+    functions, or Pylons versions.
 
     Currently using the presence of `flask.request`, though we may want to
     change that for something more robust.
     '''
-    if flask.request:
+    if (flask.request and
+            not flask.request.environ.get('ckan.app') == 'pylons_app'):
         return True
     else:
         return False

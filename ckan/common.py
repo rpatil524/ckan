@@ -67,6 +67,12 @@ def _(text):
 
 class PylonsStyleContext(object):
 
+    def __dir__(self):
+        if is_flask():
+            return dir(flask.g)
+        else:
+            return dir(pylons.c)
+
     def __getattr__(self, name):
         if is_flask():
             return getattr(flask.g, name, None)

@@ -1,11 +1,15 @@
 # encoding: utf-8
 
+import inspect
 import functools
 import logging
 import re
+import importlib
+import inspect
+
 from collections import defaultdict
 
-from werkzeug.local import LocalProxy
+from werkzeug.utils import import_string
 import six
 from six import string_types, text_type
 
@@ -328,6 +332,33 @@ def clear_actions_cache():
 
 
 def chained_action(func):
+    '''Decorator function allowing action function to be chained.
+
+    This allows a plugin to modify the behaviour of an existing action
+    function. A Chained action function must be defined as
+    ``action_function(original_action, context, data_dict)`` where the
+    first parameter will be set to the action function in the next plugin
+    or in core ckan. The chained action may call the original_action
+    function, optionally passing different values, handling exceptions,
+    returning different values and/or raising different exceptions
+    to the caller.
+
+    Usage::
+
+        from ckan.plugins.toolkit import chained_action
+
+        @chained_action
+        @side_effect_free
+        def package_search(original_action, context, data_dict):
+            return original_action(context, data_dict)
+
+    :param func: chained action function
+    :type func: callable
+
+    :returns: chained action function
+    :rtype: callable
+
+    '''
     func.chained_action = True
     return func
 
@@ -390,30 +421,21 @@ def get_action(action):
         if action not in _actions:
             raise KeyError("Action '%s' not found" % action)
         return _actions.get(action)
-    # Otherwise look in all the plugins to resolve all possible
-    # First get the default ones in the ckan/logic/action directory
-    # Rather than writing them out in full will use __import__
+    # Otherwise look in all the plugins to resolve all possible First
+    # get the default ones in the ckan/logic/action directory Rather
+    # than writing them out in full will use importlib.import_module
     # to load anything from ckan.logic.action that looks like it might
     # be an action
     for action_module_name in ['get', 'create', 'update', 'delete', 'patch']:
-        module_path = 'ckan.logic.action.' + action_module_name
-        module = __import__(module_path)
-        for part in module_path.split('.')[1:]:
-            module = getattr(module, part)
-        for k, v in module.__dict__.items():
-            if not k.startswith('_') and not isinstance(v, LocalProxy):
-                # Only load functions from the action module or already
-                # replaced functions.
-                if (hasattr(v, '__call__') and
-                        (v.__module__ == module_path or
-                         hasattr(v, '__replaced'))):
-                    _actions[k] = v
-
-                    # Whitelist all actions defined in logic/action/get.py as
-                    # being side-effect free.
-                    if action_module_name == 'get' and \
-                       not hasattr(v, 'side_effect_free'):
-                        v.side_effect_free = True
+        module = importlib.import_module(
+            '.' + action_module_name, 'ckan.logic.action')
+        for k, v in authz.get_local_functions(module):
+            _actions[k] = v
+            # Whitelist all actions defined in logic/action/get.py as
+            # being side-effect free.
+            if action_module_name == 'get' and \
+               not hasattr(v, 'side_effect_free'):
+                v.side_effect_free = True
 
     # Then overwrite them with any specific ones in the plugins:
     resolved_action_plugins = {}
@@ -489,14 +511,9 @@ def get_action(action):
                         context['__auth_audit'].pop()
                 except IndexError:
                     pass
+
                 return result
             return wrapped
-
-        # If we have been called multiple times for example during tests then
-        # we need to make sure that we do not rewrap the actions.
-        if hasattr(_action, '__replaced'):
-            _actions[action_name] = _action.__replaced
-            continue
 
         fn = make_wrapped(_action, action_name)
         # we need to mirror the docstring
@@ -505,7 +522,6 @@ def get_action(action):
         if getattr(_action, 'side_effect_free', False):
             fn.side_effect_free = True
         _actions[action_name] = fn
-
     return _actions.get(action)
 
 
@@ -645,6 +661,33 @@ def auth_disallow_anonymous_access(action):
 def chained_auth_function(func):
     '''
     Decorator function allowing authentication functions to be chained.
+
+    This chain starts with the last chained auth function to be registered and
+    ends with the original auth function (or a non-chained plugin override
+    version). Chained auth functions must accept an extra parameter,
+    specifically the next auth function in the chain, for example::
+
+        auth_function(next_auth, context, data_dict).
+
+    The chained auth function may call the next_auth function, optionally
+    passing different values, handling exceptions, returning different
+    values and/or raising different exceptions to the caller.
+
+    Usage::
+
+        from ckan.plugins.toolkit import chained_auth_function
+
+        @chained_auth_function
+        @auth_allow_anonymous_access
+        def user_show(next_auth, context, data_dict=None):
+            return next_auth(context, data_dict)
+
+    :param func: chained authentication function
+    :type func: callable
+
+    :returns: chained authentication function
+    :rtype: callable
+
     '''
     func.chained_auth_function = True
     return func
@@ -715,16 +758,8 @@ def model_name_to_class(model_module, model_name):
 
 def _import_module_functions(module_path):
     '''Import a module and get the functions and return them in a dict'''
-    functions_dict = {}
-    module = __import__(module_path)
-    for part in module_path.split('.')[1:]:
-        module = getattr(module, part)
-    for k, v in module.__dict__.items():
-
-        try:
-            if v.__module__ != module_path:
-                continue
-            functions_dict[k] = v
-        except AttributeError:
-            pass
-    return functions_dict
+    module = importlib.import_module(module_path)
+    return {
+        k: v
+        for k, v in authz.get_local_functions(module)
+    }

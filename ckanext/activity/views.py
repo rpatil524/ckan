@@ -4,7 +4,7 @@ import logging
 
 import sqlalchemy as sa
 from datetime import datetime
-from typing import Any, Optional, Union, Tuple, List
+from typing import Any, List, Optional, Union
 
 from flask import Blueprint
 
@@ -1034,7 +1034,7 @@ def _get_deleted_activities_list() -> List[dict[str, Any]]:
 
 def _check_admin_activities_auth() -> None:
     context: Context = {
-        "user": getattr(tk.current_user, "name", None),
+        "user": getattr(tk.current_user, "name", None) or "",
         "auth_user_obj": getattr(tk.current_user, "userobj", None),
     }
     tk.check_access("sysadmin", context)

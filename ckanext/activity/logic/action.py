@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import datetime
 import json
+from collections import defaultdict
 from typing import Any, Optional
 
 import ckan.plugins.toolkit as tk
@@ -677,10 +678,13 @@ def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
     :param offset_days: Number of days from today. Activities older
         than this will be deleted.
     :type offset_days: int
+    :param keep: Optional. When set, keep this many most recent activities
+        per item; delete only older ones in the range.
+    :type keep: int
 
     Note: Either provide both start_date and end_date to specify a date range,
     or provide offset_days to delete activities older than a specified number
-    of days.
+    of days. Use keep to retain the N most recent activities per item.
     """
     tk.check_access("activity_delete", context, data_dict)
 
@@ -705,6 +709,7 @@ def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
     start_date = data_dict.get("start_date")
     end_date = data_dict.get("end_date")
     offset_days = data_dict.get("offset_days")
+    keep = data_dict.get("keep")
 
     if offset_days:
         threshold_date = datetime.datetime.now() - datetime.timedelta(
@@ -735,12 +740,39 @@ def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
         }
 
     if query.count():
-        activity_ids_subq = query.with_entities(model_activity.Activity.id)
-        detail_table = model_activity.ActivityDetail.__table__
-        session.query(model_activity.ActivityDetail).filter(
-            detail_table.c.activity_id.in_(activity_ids_subq)
-        ).delete(synchronize_session=False)
-        deleted_count = query.delete(synchronize_session=False)
+        if keep and keep > 0:
+            matching = query.all()
+            by_object: defaultdict[str, list[tuple[str, datetime.datetime]]] = (
+                defaultdict(list)
+            )
+            for match in matching:
+                timestamp = match.timestamp or datetime.datetime.min
+                by_object[match.object_id or ""].append((match.id, timestamp))
+            to_delete_ids: list[str] = []
+            for _object_id, act_list in by_object.items():
+                act_list.sort(key=lambda x: x[1], reverse=True)
+                to_delete_ids.extend(id_ for id_, _ts in act_list[keep:])
+            if not to_delete_ids:
+                msg = tk._(
+                    "No activities found matching the specified criteria."
+                )
+                return {"message": msg}
+            detail_table = model_activity.ActivityDetail.__table__
+            session.query(model_activity.ActivityDetail).filter(
+                detail_table.c.activity_id.in_(to_delete_ids)
+            ).delete(synchronize_session=False)
+            deleted_count = (
+                session.query(model_activity.Activity)
+                .filter(model_activity.Activity.id.in_(to_delete_ids))
+                .delete(synchronize_session=False)
+            )
+        else:
+            activity_ids_subq = query.with_entities(model_activity.Activity.id)
+            detail_table = model_activity.ActivityDetail.__table__
+            session.query(model_activity.ActivityDetail).filter(
+                detail_table.c.activity_id.in_(activity_ids_subq)
+            ).delete(synchronize_session=False)
+            deleted_count = query.delete(synchronize_session=False)
 
         if not context.get("defer_commit", False):
             session.commit()

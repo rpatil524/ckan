@@ -23,6 +23,7 @@ class TestCleanActivitiesCli:
         assert result.exit_code == 0
         assert "Deletes activities" in result.output
         assert "--offset-days" in result.output
+        assert "--keep" in result.output
         assert "--start-date" in result.output
         assert "--end-date" in result.output
         assert "--force" in result.output or "-f" in result.output

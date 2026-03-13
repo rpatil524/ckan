@@ -30,21 +30,34 @@ _DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
     "be deleted",
 )
 @click.option(
+    "--keep",
+    type=click.INT,
+    default=None,
+    help="Keep this many most recent activities per item (object); "
+    "only older ones in the range are deleted.",
+)
+@click.option(
     "-f",
     "--force",
     is_flag=True,
     help="Do not ask for confirmation.",
 )
 def activities(
-    start_date: datetime, end_date: datetime, offset_days: int, force: bool
+    start_date: datetime,
+    end_date: datetime,
+    offset_days: int,
+    keep: int | None,
+    force: bool,
 ):
     """
     Delete activities based on a specified date range or offset days.
     You must provide either a start date and end date or an offset in days.
+    Use --keep N to retain the N most recent activities per item.
 
     Examples:
         ckan clean activities --start-date 2023-01-01 --end-date 2023-01-31
         ckan clean activities --offset-days 30
+        ckan clean activities --offset-days 90 --keep 5
 
     """
     try:
@@ -59,6 +72,7 @@ def activities(
             "start_date": start_date,
             "end_date": end_date,
             "offset_days": offset_days,
+            "keep": keep,
         }
 
         result = logic.get_action("activity_delete")(context, data_dict)[

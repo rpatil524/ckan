@@ -896,6 +896,7 @@ def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
     )
     if error is not None:
         return error
+    assert query is not None
 
     if not query.count():
         return {

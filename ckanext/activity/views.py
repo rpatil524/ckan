@@ -2,9 +2,8 @@
 from __future__ import annotations
 import logging
 
-import sqlalchemy as sa
 from datetime import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
 from flask import Blueprint
 

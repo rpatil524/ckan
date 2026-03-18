@@ -8,6 +8,7 @@ import json
 from collections import defaultdict
 from typing import Any, Optional
 
+import sqlalchemy as sa
 import ckan.plugins.toolkit as tk
 from ckan import authz, model
 from ckan.logic import validate
@@ -660,6 +661,41 @@ def activity_diff(context: Context, data_dict: DataDict) -> dict[str, Any]:
     return {
         "diff": diff,
         "activities": activities,
+    }
+
+
+def activity_delete_counts(context: Context, data_dict: DataDict) -> dict[str, Any]:
+    """
+    Returns counts of activities for the predefined delete options in the admin UI :
+    older than 1 day, 30 days, 365 days, and total.
+    """
+    tk.check_access("activity_delete", context, data_dict)
+    session = context["session"]
+    now = datetime.datetime.now()
+    t1 = now - datetime.timedelta(days=1)
+    t30 = now - datetime.timedelta(days=30)
+    t365 = now - datetime.timedelta(days=365)
+    Activity = model_activity.Activity
+    row = (
+        session.query(
+            sa.func.count(sa.case((Activity.timestamp < t1, 1))).label(
+                "older_than_1_day"
+            ),
+            sa.func.count(sa.case((Activity.timestamp < t30, 1))).label(
+                "older_than_30_days"
+            ),
+            sa.func.count(sa.case((Activity.timestamp < t365, 1))).label(
+                "older_than_365_days"
+            ),
+            sa.func.count().label("total"),
+        )
+        .one()
+    )
+    return {
+        "older_than_1_day": row.older_than_1_day or 0,
+        "older_than_30_days": row.older_than_30_days or 0,
+        "older_than_365_days": row.older_than_365_days or 0,
+        "total": row.total or 0,
     }
 
 

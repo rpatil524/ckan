@@ -984,54 +984,6 @@ def _get_dashboard_context(
     }
 
 
-@bp.route("/testing/dashboard")
-def dashboard_testing() -> str:
-    return tk.render(
-        'user/snippets/followee_dropdown.html', {
-            'context': {},
-            'followees': [
-                {"dict": {"id": 1}, "display_name": "Test followee"},
-                {"dict": {"id": 2}, "display_name": "Not valid"}
-            ]
-        }
-    )
-
-
-def _activity_display_label(activity: "Activity") -> str:
-    """Label for an activity in the trash list (same shape as entity.title/name)."""
-    time_str = (
-        activity.timestamp.strftime("%H:%M - %d.%m.%Y")
-        if activity.timestamp
-        else ""
-    )
-    return f"{activity.activity_type} — {time_str}" if time_str else (
-        activity.activity_type or ""
-    )
-
-
-def _get_activities_list() -> List[dict[str, Any]]:
-    """Return a flat list of dicts (id, type, title, name, date_str) for display and purge."""
-    activities = (
-        model.Session.query(Activity)
-        .order_by(Activity.activity_type, sa.desc(Activity.timestamp))
-        .all()
-    )
-    return [
-        {
-            "id": activity.id,
-            "type": "activity",
-            "title": _activity_display_label(activity),
-            "name": str(activity.id),
-            "date_str": (
-                activity.timestamp.strftime("%Y-%m-%d")
-                if activity.timestamp
-                else ""
-            ),
-        }
-        for activity in activities
-    ]
-
-
 def _check_admin_activities_auth() -> None:
     context: Context = {
         "user": getattr(tk.current_user, "name", None) or "",
@@ -1040,62 +992,48 @@ def _check_admin_activities_auth() -> None:
     tk.check_access("sysadmin", context)
 
 
+# Predefined delete options: form action value -> offset_days (-1 = all)
+_ADMIN_DELETE_OPTIONS = {
+    "older_than_1_day": 1,
+    "older_than_30_days": 30,
+    "older_than_365_days": 365,
+    "all": -1,  # threshold = now + 1 day so every activity is older
+}
+
+
 def admin_activities() -> Union[str, Response]:
-    """Admin tab view for listing and purging activities."""
-    _check_admin_activities_auth()
+    """Admin tab view: predefined delete options with counts."""
+    try:
+        _check_admin_activities_auth()
+    except tk.NotAuthorized:
+        return tk.abort(403, tk._("Need to be system administrator to administer"))
+
+    user = getattr(tk.current_user, "name", None) or ""
 
     if tk.request.method == "POST":
         if "cancel" in tk.request.form:
             return tk.h.redirect_to("activity.admin_activities")
 
         action = tk.request.form.get("action", "")
-        if action == "all":
-            deleted_activities = _get_activities_list()
-            user = getattr(tk.current_user, "name", None) or ""
-            for ent in deleted_activities:
-                tk.get_action("activity_delete")(
-                    {"user": user},
-                    {"id": ent["id"]},
-                )
-            model.Session.remove()
-            tk.h.flash_success(
-                tk._("{number} activities have been purged").format(
-                    number=len(deleted_activities)
-                )
+        offset_days = _ADMIN_DELETE_OPTIONS.get(action)
+        if offset_days is not None:
+            result = tk.get_action("activity_delete")(
+                {"user": user, "session": model.Session},
+                {
+                    "offset_days": offset_days,
+                    "batch_size": 50000,
+                },
             )
-        elif action == "activity":
-            purge_date = tk.request.form.get("date")
-            if purge_date is not None:
-                deleted_activities = _get_activities_list()
-                to_purge = [
-                    e for e in deleted_activities if e.get("date_str") == purge_date
-                ]
-                user = getattr(tk.current_user, "name", None) or ""
-                for ent in to_purge:
-                    tk.get_action("activity_delete")(
-                        {"user": user},
-                        {"id": ent["id"]},
-                    )
-                model.Session.remove()
-                tk.h.flash_success(
-                    tk._("{number} activities have been purged").format(
-                        number=len(to_purge)
-                    )
-                )
+            model.Session.remove()
+            tk.h.flash_success(result.get("message", ""))
         return tk.h.redirect_to("activity.admin_activities")
 
-    deleted_activities = _get_activities_list()
-    messages = {
-        "confirm": tk._("Are you sure you want to purge all activities?"),
-        "success": tk._("{number} activities have been purged"),
-        "empty": tk._("There are no activities to purge"),
-    }
+    counts = tk.get_action("activity_delete_counts")(
+        {"user": user, "session": model.Session}, {}
+    )
     return tk.render(
         "admin/activities.html",
-        extra_vars={
-            "deleted_activities": deleted_activities,
-            "messages": messages,
-        },
+        extra_vars={"counts": counts},
     )
 
 

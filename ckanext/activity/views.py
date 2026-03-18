@@ -1009,7 +1009,7 @@ def _activity_display_label(activity: "Activity") -> str:
     )
 
 
-def _get_deleted_activities_list() -> List[dict[str, Any]]:
+def _get_activities_list() -> List[dict[str, Any]]:
     """Return a flat list of dicts (id, type, title, name, date_str) for display and purge."""
     activities = (
         model.Session.query(Activity)
@@ -1050,7 +1050,7 @@ def admin_activities() -> Union[str, Response]:
 
         action = tk.request.form.get("action", "")
         if action == "all":
-            deleted_activities = _get_deleted_activities_list()
+            deleted_activities = _get_activities_list()
             user = getattr(tk.current_user, "name", None) or ""
             for ent in deleted_activities:
                 tk.get_action("activity_delete")(
@@ -1066,7 +1066,7 @@ def admin_activities() -> Union[str, Response]:
         elif action == "activity":
             purge_date = tk.request.form.get("date")
             if purge_date is not None:
-                deleted_activities = _get_deleted_activities_list()
+                deleted_activities = _get_activities_list()
                 to_purge = [
                     e for e in deleted_activities if e.get("date_str") == purge_date
                 ]
@@ -1084,7 +1084,7 @@ def admin_activities() -> Union[str, Response]:
                 )
         return tk.h.redirect_to("activity.admin_activities")
 
-    deleted_activities = _get_deleted_activities_list()
+    deleted_activities = _get_activities_list()
     messages = {
         "confirm": tk._("Are you sure you want to purge all activities?"),
         "success": tk._("{number} activities have been purged"),

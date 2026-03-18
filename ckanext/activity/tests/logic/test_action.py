@@ -2856,12 +2856,13 @@ class TestActivityDeleteByDateRangeOrOffset:
                 user_id=sysadmin["id"],
             )
         model.Session.commit()
-        # Package has 5 activities (1 new package + 4 changed); user has 1. All before 2023-01-02
+        # Package has 5 activities (1 new package + 4 changed); user has 1.
+        # offset_days=11 from 2023-02-01 → threshold 2023-01-21, so all 6 are in range.
         freezer.move_to("2023-02-01T12:00:00")
         result = helpers.call_action(
             "activity_delete",
             context={"user": sysadmin["name"]},
-            offset_days=30,
+            offset_days=11,
             keep=2,
         )
         # Per object_id we keep 2. Package: 5 - 2 = 3 deleted. User: 1, keep 2 → 0 deleted.

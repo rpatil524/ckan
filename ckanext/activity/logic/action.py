@@ -726,7 +726,10 @@ def _build_activity_delete_query(
     end_date: Optional[datetime.datetime],
     offset_days: Optional[int],
 ):  # -> tuple[Query, None] | tuple[None, dict]
-    """Build query for range/offset delete. Returns (query, None) or (None, error_dict)."""
+    """
+    Build query for range/offset delete.
+    Returns (query, None) or (None, error_dict).
+    """
     if offset_days:
         threshold_date = datetime.datetime.now() - datetime.timedelta(
             days=offset_days
@@ -787,7 +790,10 @@ def _delete_activities_with_keep(
     )
     if commit:
         session.commit()
-    return {"message": tk._("Deleted {amount} rows from the activity table.").format(amount=deleted_count)}
+    msg = tk._("Deleted {amount} rows from the activity table.").format(
+        amount=deleted_count
+    )
+    return {"message": msg}
 
 
 def _delete_activities_batched(
@@ -815,7 +821,10 @@ def _delete_activities_batched(
         ).delete(synchronize_session=False)
         total_deleted += len(batch_ids)
         session.commit()
-    return {"message": tk._("Deleted {amount} rows from the activity table.").format(amount=total_deleted)}
+    msg = tk._("Deleted {amount} rows from the activity table.").format(
+        amount=total_deleted
+    )
+    return {"message": msg}
 
 
 def _delete_activities_bulk(
@@ -832,7 +841,10 @@ def _delete_activities_bulk(
     deleted_count = query.delete(synchronize_session=False)
     if commit:
         session.commit()
-    return {"message": tk._("Deleted {amount} rows from the activity table.").format(amount=deleted_count)}
+    msg = tk._("Deleted {amount} rows from the activity table.").format(
+        amount=deleted_count
+    )
+    return {"message": msg}
 
 
 @tk.validate(schema.default_activity_delete_schema)

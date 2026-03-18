@@ -699,6 +699,142 @@ def activity_delete_counts(context: Context, data_dict: DataDict) -> dict[str, A
     }
 
 
+def _delete_activity_by_id(
+    session: Any,
+    activity_id: str,
+    defer_commit: bool,
+) -> dict[str, Any]:
+    """Delete a single activity by id. Raises ObjectNotFound if not found."""
+    activity = model_activity.Activity.get(activity_id)
+    if activity is None:
+        raise tk.ObjectNotFound("Activity not found")
+    detail_table = model_activity.ActivityDetail.__table__
+    session.query(model_activity.ActivityDetail).filter(
+        detail_table.c.activity_id == activity_id
+    ).delete(synchronize_session=False)
+    session.query(model_activity.Activity).filter(
+        model_activity.Activity.id == activity_id
+    ).delete(synchronize_session=False)
+    if not defer_commit:
+        session.commit()
+    return {"message": tk._("Activity purged")}
+
+
+def _build_activity_delete_query(
+    session: Any,
+    start_date: Optional[datetime.datetime],
+    end_date: Optional[datetime.datetime],
+    offset_days: Optional[int],
+):  # -> tuple[Query, None] | tuple[None, dict]
+    """Build query for range/offset delete. Returns (query, None) or (None, error_dict)."""
+    if offset_days:
+        threshold_date = datetime.datetime.now() - datetime.timedelta(
+            days=offset_days
+        )
+        query = session.query(model_activity.Activity).filter(
+            model_activity.Activity.timestamp < threshold_date
+        )
+        return (query, None)
+    if start_date and end_date:
+        if start_date > end_date:
+            session.rollback()
+            raise tk.ValidationError(
+                tk._("start_date cannot be greater than end_date.")
+            )
+        query = session.query(model_activity.Activity).filter(
+            model_activity.Activity.timestamp.between(start_date, end_date)
+        )
+        return (query, None)
+    return (
+        None,
+        {
+            "message": tk._(
+                "No activities found matching the specified criteria. "
+                "Please provide either start_date and end_date or offset_days."
+            )
+        },
+    )
+
+
+def _delete_activities_with_keep(
+    session: Any,
+    query: Any,
+    keep: int,
+    detail_table: Any,
+    commit: bool,
+) -> dict[str, Any]:
+    """Delete activities in range but keep N most recent per object_id."""
+    matching = query.all()
+    by_object: defaultdict[str, list[tuple[str, datetime.datetime]]] = (
+        defaultdict(list)
+    )
+    for match in matching:
+        timestamp = match.timestamp or datetime.datetime.min
+        by_object[match.object_id or ""].append((match.id, timestamp))
+    to_delete_ids: list[str] = []
+    for _object_id, act_list in by_object.items():
+        act_list.sort(key=lambda x: x[1], reverse=True)
+        to_delete_ids.extend(id_ for id_, _ts in act_list[keep:])
+    if not to_delete_ids:
+        return {"message": tk._("No activities found matching the specified criteria.")}
+    session.query(model_activity.ActivityDetail).filter(
+        detail_table.c.activity_id.in_(to_delete_ids)
+    ).delete(synchronize_session=False)
+    deleted_count = (
+        session.query(model_activity.Activity)
+        .filter(model_activity.Activity.id.in_(to_delete_ids))
+        .delete(synchronize_session=False)
+    )
+    if commit:
+        session.commit()
+    return {"message": tk._("Deleted {amount} rows from the activity table.").format(amount=deleted_count)}
+
+
+def _delete_activities_batched(
+    session: Any,
+    query: Any,
+    batch_size: int,
+    detail_table: Any,
+) -> dict[str, Any]:
+    """Delete activities in batches, committing each batch."""
+    total_deleted = 0
+    while True:
+        batch_ids = [
+            row[0]
+            for row in query.with_entities(
+                model_activity.Activity.id
+            ).limit(batch_size).all()
+        ]
+        if not batch_ids:
+            break
+        session.query(model_activity.ActivityDetail).filter(
+            detail_table.c.activity_id.in_(batch_ids)
+        ).delete(synchronize_session=False)
+        session.query(model_activity.Activity).filter(
+            model_activity.Activity.id.in_(batch_ids)
+        ).delete(synchronize_session=False)
+        total_deleted += len(batch_ids)
+        session.commit()
+    return {"message": tk._("Deleted {amount} rows from the activity table.").format(amount=total_deleted)}
+
+
+def _delete_activities_bulk(
+    session: Any,
+    query: Any,
+    detail_table: Any,
+    commit: bool,
+) -> dict[str, Any]:
+    """Delete all activities matching the query in one go."""
+    activity_ids_subq = query.with_entities(model_activity.Activity.id)
+    session.query(model_activity.ActivityDetail).filter(
+        detail_table.c.activity_id.in_(activity_ids_subq)
+    ).delete(synchronize_session=False)
+    deleted_count = query.delete(synchronize_session=False)
+    if commit:
+        session.commit()
+    return {"message": tk._("Deleted {amount} rows from the activity table.").format(amount=deleted_count)}
+
+
 @tk.validate(schema.default_activity_delete_schema)
 def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
     """
@@ -730,21 +866,12 @@ def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
 
     session = context["session"]
     activity_id = data_dict.get("id")
-
     if activity_id:
-        activity = model_activity.Activity.get(activity_id)
-        if activity is None:
-            raise tk.ObjectNotFound("Activity not found")
-        detail_table = model_activity.ActivityDetail.__table__
-        session.query(model_activity.ActivityDetail).filter(
-            detail_table.c.activity_id == activity_id
-        ).delete(synchronize_session=False)
-        session.query(model_activity.Activity).filter(
-            model_activity.Activity.id == activity_id
-        ).delete(synchronize_session=False)
-        if not context.get("defer_commit", False):
-            session.commit()
-        return {"message": tk._("Activity purged")}
+        return _delete_activity_by_id(
+            session,
+            activity_id,
+            context.get("defer_commit", False),
+        )
 
     start_date = data_dict.get("start_date")
     end_date = data_dict.get("end_date")
@@ -752,107 +879,26 @@ def activity_delete(context: Context, data_dict: DataDict) -> dict[str, Any]:
     keep = data_dict.get("keep")
     batch_size = data_dict.get("batch_size")
 
-    if offset_days:
-        threshold_date = datetime.datetime.now() - datetime.timedelta(
-            days=offset_days
-        )
+    query, error = _build_activity_delete_query(
+        session, start_date, end_date, offset_days
+    )
+    if error is not None:
+        return error
 
-        query = session.query(model_activity.Activity).filter(
-            model_activity.Activity.timestamp < threshold_date
-        )
-
-    elif start_date and end_date:
-        if start_date > end_date:
-            session.rollback()
-            raise tk.ValidationError(
-                tk._("start_date cannot be greater than end_date.")
-            )
-
-        query = session.query(model_activity.Activity).filter(
-            model_activity.Activity.timestamp.between(start_date, end_date)
-        )
-
-    else:
+    if not query.count():
         return {
-            "message": tk._(
-                "No activities found matching the specified criteria. "
-                "Please provide either start_date and end_date or offset_days."
-            )
+            "message": tk._("No activities found matching the specified criteria.")
         }
 
-    if query.count():
-        detail_table = model_activity.ActivityDetail.__table__
-        commit = not context.get("defer_commit", False)
+    detail_table = model_activity.ActivityDetail.__table__
+    commit = not context.get("defer_commit", False)
 
-        if keep and keep > 0:
-            matching = query.all()
-            by_object: defaultdict[str, list[tuple[str, datetime.datetime]]] = (
-                defaultdict(list)
-            )
-            for match in matching:
-                timestamp = match.timestamp or datetime.datetime.min
-                by_object[match.object_id or ""].append((match.id, timestamp))
-            to_delete_ids: list[str] = []
-            for _object_id, act_list in by_object.items():
-                act_list.sort(key=lambda x: x[1], reverse=True)
-                to_delete_ids.extend(id_ for id_, _ts in act_list[keep:])
-            if not to_delete_ids:
-                msg = tk._(
-                    "No activities found matching the specified criteria."
-                )
-                return {"message": msg}
-            session.query(model_activity.ActivityDetail).filter(
-                detail_table.c.activity_id.in_(to_delete_ids)
-            ).delete(synchronize_session=False)
-            deleted_count = (
-                session.query(model_activity.Activity)
-                .filter(model_activity.Activity.id.in_(to_delete_ids))
-                .delete(synchronize_session=False)
-            )
-            if commit:
-                session.commit()
-            msg = tk._(
-                "Deleted {amount} rows from the activity table."
-            ).format(amount=deleted_count)
-            return {"message": msg}
-
-        if batch_size and batch_size > 0:
-            total_deleted = 0
-            while True:
-                batch_ids = [
-                    row[0]
-                    for row in query.with_entities(
-                        model_activity.Activity.id
-                    ).limit(batch_size).all()
-                ]
-                if not batch_ids:
-                    break
-                session.query(model_activity.ActivityDetail).filter(
-                    detail_table.c.activity_id.in_(batch_ids)
-                ).delete(synchronize_session=False)
-                session.query(model_activity.Activity).filter(
-                    model_activity.Activity.id.in_(batch_ids)
-                ).delete(synchronize_session=False)
-                total_deleted += len(batch_ids)
-                # Always commit each batch to avoid one huge transaction
-                session.commit()
-            msg = tk._(
-                "Deleted {amount} rows from the activity table."
-            ).format(amount=total_deleted)
-            return {"message": msg}
-
-        activity_ids_subq = query.with_entities(model_activity.Activity.id)
-        session.query(model_activity.ActivityDetail).filter(
-            detail_table.c.activity_id.in_(activity_ids_subq)
-        ).delete(synchronize_session=False)
-        deleted_count = query.delete(synchronize_session=False)
-        if commit:
-            session.commit()
-        msg = tk._(
-            "Deleted {amount} rows from the activity table."
-        ).format(amount=deleted_count)
-        return {"message": msg}
-
-    return {
-        "message": tk._("No activities found matching the specified criteria.")
-    }
+    if keep and keep > 0:
+        return _delete_activities_with_keep(
+            session, query, keep, detail_table, commit
+        )
+    if batch_size and batch_size > 0:
+        return _delete_activities_batched(
+            session, query, batch_size, detail_table
+        )
+    return _delete_activities_bulk(session, query, detail_table, commit)

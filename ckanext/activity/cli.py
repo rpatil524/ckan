@@ -61,6 +61,16 @@ def activities(
 
     """
     try:
+        if not force:
+            if not click.confirm(
+                "This will delete matching activities in batches. "
+                "This action cannot be undone. Continue?",
+                default=False,
+                abort=True,
+            ):
+                click.secho("Operation cancelled.", fg="yellow")
+                return
+
         site_user = logic.get_action("get_site_user")(
             {"ignore_auth": True}, {}
         )
@@ -78,23 +88,6 @@ def activities(
         result = logic.get_action("activity_delete")(context, data_dict)[
             "message"
         ]
-
-        if not force:
-            confirm_text = (
-                f"Are you sure you want to delete {result} activities? "
-                "This action cannot be undone."
-            )
-            if click.confirm(confirm_text, default=False, abort=True):
-                click.secho(
-                    f"Deleted {result} rows from the activity table.",
-                    fg="green",
-                    bold=True,
-                )
-                model.Session.commit()
-            else:
-                click.secho("Operation cancelled.", fg="yellow")
-
-        else:
-            click.secho(result, fg="green", bold=True)
+        click.secho(result, fg="green", bold=True)
     except logic.ValidationError as e:
         click.secho(f"Validation error: {e.error_summary}", fg="red")

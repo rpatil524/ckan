@@ -2816,6 +2816,32 @@ class TestActivityDeleteByDateRangeOrOffset:
         assert len(activities) == 0
 
     @pytest.mark.freeze_time
+    def test_delete_by_offset_days_with_batch_size_deletes_in_batches(self, freezer):
+        """With batch_size set, activities are deleted in batches and total is correct."""
+        freezer.move_to("2023-01-01")
+        sysadmin = factories.Sysadmin()
+        dataset = factories.Dataset()
+        activity_dict = {
+            "activity_type": "changed package",
+            "object_id": dataset["id"],
+            "user_id": sysadmin["id"],
+        }
+        for _ in range(4):
+            ActivityFactory(**activity_dict)
+        model.Session.commit()
+        # 1 new package + 1 new user + 4 changed = 6 activities before 2023-02-01
+        freezer.move_to("2023-02-01")
+        result = helpers.call_action(
+            "activity_delete",
+            context={"user": sysadmin["name"]},
+            offset_days=30,
+            batch_size=2,
+        )
+        assert result["message"] == "Deleted 6 rows from the activity table."
+        activities = model.Session.query(Activity).all()
+        assert len(activities) == 0
+
+    @pytest.mark.freeze_time
     def test_delete_by_offset_days_with_keep_keeps_n_most_recent_per_item(self, freezer):
         """With keep=N, the N most recent activities per object_id are kept."""
         freezer.move_to("2023-01-01T10:00:00")

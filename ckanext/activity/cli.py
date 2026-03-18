@@ -3,10 +3,13 @@ from datetime import datetime
 from typing import Any
 
 from ckan.cli.clean import clean
-from ckan import model, logic, types
+from ckan import logic, types
 
 # ISO 8601 date and datetime formats (date-only and with time)
 _DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S"]
+
+# Batch size for activity deletion (avoids timeouts on large tables)
+_DEFAULT_BATCH_SIZE = 50_000
 
 
 @clean.command(
@@ -51,6 +54,7 @@ def activities(
 ):
     """
     Delete activities based on a specified date range or offset days.
+    Activities are always processed in batches to avoid timeouts on large tables.
     You must provide either a start date and end date or an offset in days.
     Use --keep N to retain the N most recent activities per item.
 
@@ -58,6 +62,7 @@ def activities(
         ckan clean activities --start-date 2023-01-01 --end-date 2023-01-31
         ckan clean activities --offset-days 30
         ckan clean activities --offset-days 90 --keep 5
+        ckan clean activities --offset-days 300 -f
 
     """
     try:
@@ -83,6 +88,7 @@ def activities(
             "end_date": end_date,
             "offset_days": offset_days,
             "keep": keep,
+            "batch_size": _DEFAULT_BATCH_SIZE,
         }
 
         result = logic.get_action("activity_delete")(context, data_dict)[

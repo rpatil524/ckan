@@ -1,2 +1,3 @@
-Activity plugin now supports deleting old activities including their related activity_details based on a specified date range or offset days.
-Add CLI command `ckan clean activities` and `activity_delete` action.
+Activity plugin now adds an activity tab to the sysadmin panel to purge old
+activities (predefined options: older than a day/month/year, or delete all).
+Adds CLI command `ckan clean activities` with multiple options and `activity_delete` action.

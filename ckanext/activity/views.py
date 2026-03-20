@@ -2,9 +2,8 @@
 from __future__ import annotations
 import logging
 
-import sqlalchemy as sa
 from datetime import datetime
-from typing import Any, Optional, Union, Tuple, List
+from typing import Any, Optional, Union
 
 from flask import Blueprint
 
@@ -24,8 +23,6 @@ from ckan.views.user import _extra_template_variables
 
 # TODO: don't use hidden funcitons
 from ckan.views.dataset import _setup_template_variables
-from ckan.views.admin import TrashView
-
 from ckan.types import Context, Response
 from .model import Activity
 from .logic.validators import (
@@ -986,126 +983,62 @@ def _get_dashboard_context(
     }
 
 
-@bp.route("/testing/dashboard")
-def dashboard_testing() -> str:
-    return tk.render(
-        'user/snippets/followee_dropdown.html', {
-            'context': {},
-            'followees': [
-                {"dict": {"id": 1}, "display_name": "Test followee"},
-                {"dict": {"id": 2}, "display_name": "Not valid"}
-            ]
-        }
-    )
+def _check_admin_activities_auth() -> None:
+    context: Context = {
+        "user": getattr(tk.current_user, "name", None) or "",
+        "auth_user_obj": getattr(tk.current_user, "userobj", None),
+    }
+    tk.check_access("sysadmin", context)
 
 
-def _activity_display_label(activity: "Activity") -> str:
-    """Label for an activity in the trash list (same shape as entity.title/name)."""
-    time_str = (
-        activity.timestamp.strftime("%H:%M - %d.%m.%Y")
-        if activity.timestamp
-        else ""
-    )
-    return f"{activity.activity_type} — {time_str}" if time_str else (
-        activity.activity_type or ""
-    )
+# Predefined delete options: form action value -> offset_days (-1 = all)
+_ADMIN_DELETE_OPTIONS = {
+    "older_than_1_day": 1,
+    "older_than_30_days": 30,
+    "older_than_365_days": 365,
+    "all": -1,  # threshold = now + 1 day so every activity is older
+}
 
 
-class ActivityTrashView(TrashView):
-    def __init__(self):
-        super(ActivityTrashView, self).__init__()
-        self.deleted_activities = self._get_deleted_activities()
+def admin_activities() -> Union[str, Response]:
+    """Admin tab view: predefined delete options with counts."""
+    try:
+        _check_admin_activities_auth()
+    except tk.NotAuthorized:
+        return tk.abort(403, tk._("Need to be system administrator to administer"))
 
-        # Include activities in the deleted_entities dictionary
-        self.deleted_entities["activity"] = self.deleted_activities
+    user = getattr(tk.current_user, "name", None) or ""
 
-        # Add messages for activities
-        self.messages["confirm"]["activity"] = tk._(
-            "Are you sure you want to purge activities?"
-        )
-        self.messages["success"]["activity"] = tk._(
-            "{number} activities have been purged"
-        )
-        self.messages["empty"]["activity"] = tk._(
-            "There are no activities to purge"
-        )
-
-    def _get_deleted_activities(self) -> List[dict[str, Any]]:
-        """Return a flat list of dicts (id, type, title, name, date_str)
-        for display and purge.
-        date_str is the date of the activity in the format YYYY-MM-DD.
-        """
-        activities = (
-            model.Session.query(Activity)
-            .order_by(Activity.activity_type, sa.desc(Activity.timestamp))
-            .all()
-        )
-        return [
-            {
-                "id": activity.id,
-                "type": "activity",
-                "title": _activity_display_label(activity),
-                "name": str(activity.id),
-                "date_str": (
-                    activity.timestamp.strftime("%Y-%m-%d")
-                    if activity.timestamp
-                    else ""
-                ),
-            }
-            for activity in activities
-        ]
-
-    def post(self) -> Response:
+    if tk.request.method == "POST":
         if "cancel" in tk.request.form:
-            return tk.h.redirect_to("admin.trash")
+            return tk.h.redirect_to("activity.admin_activities")
 
-        req_action = tk.request.form.get("action", "")
-        if req_action == "activity":
-            purge_date = tk.request.form.get("date")
-            if purge_date is not None:
-                self._purge_activities_by_date(purge_date)
-            else:
-                self.purge_entity("activity")
-            return tk.h.redirect_to("admin.trash")
-        else:
-            # Call the parent class's post method for other actions
-            return super(ActivityTrashView, self).post()
-
-    def _purge_activities_by_date(self, date_str: str) -> None:
-        """Purge only activities with the given date_str."""
-        to_purge = [
-            e for e in self.deleted_activities
-            if e.get("date_str") == date_str
-        ]
-        user = getattr(tk.current_user, "name", None) or ""
-        for ent in to_purge:
-            tk.get_action("activity_delete")(
-                {"user": user},
-                {"id": ent["id"]},
+        action = tk.request.form.get("action", "")
+        offset_days = _ADMIN_DELETE_OPTIONS.get(action)
+        if offset_days is not None:
+            result = tk.get_action("activity_delete")(
+                {"user": user, "session": model.Session},
+                {
+                    "offset_days": offset_days,
+                    "batch_size": 50000,
+                },
             )
-        model.Session.remove()
-        tk.h.flash_success(
-            self.messages["success"]["activity"].format(number=len(to_purge))
-        )
+            model.Session.remove()
+            tk.h.flash_success(result.get("message", ""))
+        return tk.h.redirect_to("activity.admin_activities")
 
-    def _get_actions_and_entities(
-        self,
-    ) -> Tuple[Tuple[str, ...], Tuple[List[Any], ...]]:
-        actions, entities = super(
-            ActivityTrashView, self
-        )._get_actions_and_entities()
-
-        actions += ("activity_delete",)
-        entities += (self.deleted_activities,)
-        return actions, entities
-
-    @staticmethod
-    def _get_purge_action(ent_type: str) -> str:
-        if ent_type == "activity":
-            return "activity_delete"
-        return TrashView._get_purge_action(ent_type)
+    counts = tk.get_action("activity_delete_counts")(
+        {"user": user, "session": model.Session}, {}
+    )
+    return tk.render(
+        "admin/activities.html",
+        extra_vars={"counts": counts},
+    )
 
 
 bp.add_url_rule(
-    "/ckan-admin/trash", view_func=ActivityTrashView.as_view(str("trash"))
+    "/ckan-admin/activities",
+    view_func=admin_activities,
+    methods=["GET", "POST"],
+    endpoint="admin_activities",
 )

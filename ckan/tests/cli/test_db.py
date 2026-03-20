@@ -164,6 +164,9 @@ class TestDBCleanSearchIndex:
         # Clean database (with confirmation bypassed in test)
         result = cli.invoke(ckan, ['db', 'clean'], input='y\n')
 
+        # recreate tables for other tests
+        model.repo.init_db()
+
         # Check command executed successfully
         assert result.exit_code == 0
         assert 'Cleaning DB: SUCCESS' in result.output

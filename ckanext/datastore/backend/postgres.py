@@ -1794,7 +1794,7 @@ def search(context: Context, data_dict: dict[str, Any]):
         if _get_pgcode(e) == _PG_ERR_CODE['undefined_table']:
             resource_id = data_dict.get('resource_id', '')
             raise toolkit.ObjectNotFound(
-                f'Resource "{resource_id}" was not found.'
+                f'DataStore table "{resource_id}" was not found.'
             )
         raise ValidationError(cast(ErrorDict, {
             'query': ['Invalid query'],

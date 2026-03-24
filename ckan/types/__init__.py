@@ -26,6 +26,7 @@ from .logic import ActionResult
 
 if TYPE_CHECKING:
     from ckan.common import CKANConfig
+    from ckan.config.middleware.flask_app import CKANFlask
     import ckan.model as model
     from ckan.tests.helpers import CKANTestApp
     from ckanext.activity.model import Activity
@@ -52,7 +53,7 @@ __all__ = [
 AlchemySession = ScopedSession[Any]
 
 Config: TypeAlias = Dict[str, Union[str, Mapping[str, str]]]
-CKANApp = Any
+CKANApp: TypeAlias = "CKANFlask"
 
 # dictionary passed to actions
 DataDict: TypeAlias = "dict[str, Any]"

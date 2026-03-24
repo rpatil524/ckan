@@ -790,7 +790,8 @@ def _delete_activities_with_keep(
     """Delete activities in range but keep N most recent per object_id.
     """
 
-    # Order activities by timestamp within each object_id and rank them (i.e number them).
+    # Order activities by timestamp within each object_id and rank them
+    # (i.e. number them).
     ranked = (
         query
         .with_entities(

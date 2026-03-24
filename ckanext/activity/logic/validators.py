@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
-import datetime
 from typing import Any, cast
 
 import ckan.plugins.toolkit as tk
@@ -132,23 +131,3 @@ def ensure_id_or_date_criteria_provided(
     if activity_id and str(activity_id).strip():
         return
     ensure_date_range_or_offset_provided(key, data, errors, context)
-
-
-def convert_yyyy_mm_dd_format(value: Any, context: Context) -> Any:
-    """
-    Converts a string in 'YYYY-MM-DD' format to a datetime.date object.
-    If the value is already a datetime.date object, it returns the value as is.
-    """
-    if isinstance(value, datetime.date):
-        return value
-    elif isinstance(value, str):
-        try:
-            return datetime.datetime.strptime(value, "%Y-%m-%d").date()
-        except ValueError:
-            raise tk.Invalid(tk._("Invalid date format. Use YYYY-MM-DD."))
-    else:
-        msg = (
-            "Invalid date type. Use a string in YYYY-MM-DD format "
-            "or a date object."
-        )
-        raise tk.Invalid(tk._(msg))

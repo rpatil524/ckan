@@ -671,7 +671,7 @@ def activity_delete_counts(context: Context, data_dict: DataDict) -> dict[str, A
     """
     tk.check_access("activity_delete", context, data_dict)
     session = context["session"]
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     t1 = now - datetime.timedelta(days=1)
     t30 = now - datetime.timedelta(days=30)
     t365 = now - datetime.timedelta(days=365)

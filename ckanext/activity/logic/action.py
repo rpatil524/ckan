@@ -731,7 +731,7 @@ def _build_activity_delete_query(
     Returns (query, None) or (None, error_dict).
     """
     if offset_days is not None:
-        threshold_date = datetime.datetime.now() - datetime.timedelta(
+        threshold_date = datetime.datetime.utcnow() - datetime.timedelta(
             days=offset_days
         )
         query = session.query(model_activity.Activity).filter(

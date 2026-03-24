@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import datetime
 import json
-from collections import defaultdict
 from typing import Any, Optional
 
 import sqlalchemy as sa
@@ -788,26 +787,52 @@ def _delete_activities_with_keep(
     detail_table: Any,
     commit: bool,
 ) -> dict[str, Any]:
-    """Delete activities in range but keep N most recent per object_id."""
-    matching = query.all()
-    by_object: defaultdict[str, list[tuple[str, datetime.datetime]]] = (
-        defaultdict(list)
+    """Delete activities in range but keep N most recent per object_id.
+    """
+
+    # Order activities by timestamp within each object_id and rank them (i.e number them).
+    ranked = (
+        query
+        .with_entities(
+            model_activity.Activity.id,
+            sa.func.row_number()
+            .over(
+                partition_by=model_activity.Activity.object_id,
+                order_by=sa.desc(
+                    sa.func.coalesce(
+                        model_activity.Activity.timestamp,
+                        sa.literal(
+                            datetime.datetime.min,
+                            type_=model_activity.Activity.timestamp.type,
+                        ),
+                    )
+                ),
+            )
+            .label("rank"),
+        )
+        .subquery("ranked")
     )
-    for match in matching:
-        timestamp = match.timestamp or datetime.datetime.min
-        by_object[match.object_id or ""].append((match.id, timestamp))
-    to_delete_ids: list[str] = []
-    for _object_id, act_list in by_object.items():
-        act_list.sort(key=lambda x: x[1], reverse=True)
-        to_delete_ids.extend(id_ for id_, _ts in act_list[keep:])
-    if not to_delete_ids:
-        return {"message": tk._("No activities found matching the specified criteria.")}
+
+    # Get the ids of activities where rank is bigger than keep
+    # (.e.g if `keep` is 5, activities from position 6 onward)
+    ids_to_delete = (
+        session.query(ranked.c.id)
+        .filter(ranked.c.rank > keep)
+    )
+
+    if ids_to_delete.count() == 0:
+        return {
+            "message": tk._("No activities found matching the specified criteria.")
+        }
+
+    # Delete acivities
     session.query(model_activity.ActivityDetail).filter(
-        detail_table.c.activity_id.in_(to_delete_ids)
+        detail_table.c.activity_id.in_(ids_to_delete)
     ).delete(synchronize_session=False)
+
     deleted_count = (
         session.query(model_activity.Activity)
-        .filter(model_activity.Activity.id.in_(to_delete_ids))
+        .filter(model_activity.Activity.id.in_(ids_to_delete))
         .delete(synchronize_session=False)
     )
     if commit:

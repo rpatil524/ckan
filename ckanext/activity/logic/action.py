@@ -669,7 +669,7 @@ def activity_delete_counts(context: Context, data_dict: DataDict) -> dict[str, A
     Returns counts of activities for the predefined delete options in the admin UI :
     older than 1 day, 30 days, 365 days, and total.
     """
-    tk.check_access("activity_delete", context, data_dict)
+    tk.check_access("activity_delete_counts", context, data_dict)
     session = context["session"]
     now = datetime.datetime.utcnow()
     t1 = now - datetime.timedelta(days=1)

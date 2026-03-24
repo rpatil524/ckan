@@ -730,7 +730,7 @@ def _build_activity_delete_query(
     Build query for range/offset delete.
     Returns (query, None) or (None, error_dict).
     """
-    if offset_days:
+    if offset_days is not None:
         threshold_date = datetime.datetime.now() - datetime.timedelta(
             days=offset_days
         )

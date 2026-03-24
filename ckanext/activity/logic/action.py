@@ -699,6 +699,28 @@ def activity_delete_counts(context: Context, data_dict: DataDict) -> dict[str, A
     }
 
 
+@tk.validate(schema.default_activity_delete_all_schema)
+def activity_delete_all(context: Context, data_dict: DataDict) -> dict[str, Any]:
+    """
+    Delete all activities. Deletes in batches (default batch size 50000) to
+    avoid timeouts on large tables.
+
+    :param batch_size: Optional batch size for each delete round.
+    """
+    tk.check_access("activity_delete_all", context, data_dict)
+    session = context["session"]
+    query = session.query(model_activity.Activity)
+    if not query.count():
+        return {
+            "message": tk._("No activities found matching the specified criteria.")
+        }
+    detail_table = model_activity.ActivityDetail.__table__
+    batch_size = data_dict.get("batch_size") or 50000
+    return _delete_activities_batched(
+        session, query, batch_size, detail_table
+    )
+
+
 def _delete_activity_by_id(
     session: Any,
     activity_id: str,

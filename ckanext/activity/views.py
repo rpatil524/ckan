@@ -991,12 +991,10 @@ def _check_admin_activities_auth() -> None:
     tk.check_access("sysadmin", context)
 
 
-# Predefined delete options: form action value -> offset_days (-1 = all)
-_ADMIN_DELETE_OPTIONS = {
+_ADMIN_DELETE_BY_OFFSET_DAYS = {
     "older_than_1_day": 1,
     "older_than_30_days": 30,
     "older_than_365_days": 365,
-    "all": -1,  # threshold = now + 1 day so every activity is older
 }
 
 
@@ -1014,17 +1012,25 @@ def admin_activities() -> Union[str, Response]:
             return tk.h.redirect_to("activity.admin_activities")
 
         action = tk.request.form.get("action", "")
-        offset_days = _ADMIN_DELETE_OPTIONS.get(action)
-        if offset_days is not None:
-            result = tk.get_action("activity_delete")(
+        if action == "delete_all":
+            result = tk.get_action("activity_delete_all")(
                 {"user": user, "session": model.Session},
-                {
-                    "offset_days": offset_days,
-                    "batch_size": 50000,
-                },
+                {"batch_size": 50000},
             )
             model.Session.remove()
             tk.h.flash_success(result.get("message", ""))
+        else:
+            offset_days = _ADMIN_DELETE_BY_OFFSET_DAYS.get(action)
+            if offset_days is not None:
+                result = tk.get_action("activity_delete")(
+                    {"user": user, "session": model.Session},
+                    {
+                        "offset_days": offset_days,
+                        "batch_size": 50000,
+                    },
+                )
+                model.Session.remove()
+                tk.h.flash_success(result.get("message", ""))
         return tk.h.redirect_to("activity.admin_activities")
 
     counts = tk.get_action("activity_delete_counts")(

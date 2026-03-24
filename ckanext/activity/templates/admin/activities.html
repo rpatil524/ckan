@@ -49,7 +49,7 @@
         <span class="badge bg-secondary rounded-pill me-2">{{ counts.total }}</span>
         <form method="POST" action="{{ h.url_for('activity.admin_activities') }}" class="d-inline" data-module="confirm-action" data-module-with-data="true" data-module-content="{{ _('Delete all {count} activities? This cannot be undone.').format(count=counts.total) }}">
           {{ h.csrf_input() }}
-          <input type="hidden" name="action" value="all">
+          <input type="hidden" name="action" value="delete_all">
           <button type="submit" class="btn btn-danger btn-sm" {% if counts.total == 0 %}disabled{% endif %}>{{ _('Delete all') }}</button>
         </form>
       </span>

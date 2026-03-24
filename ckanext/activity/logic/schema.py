@@ -117,3 +117,14 @@ def default_activity_delete_schema(
         "keep": [ignore_empty, natural_number_validator],
         "batch_size": [ignore_empty, natural_number_validator],
     }
+
+
+@validator_args
+def default_activity_delete_all_schema(
+    ignore_empty: Validator,
+    ignore_missing: Validator,
+    natural_number_validator: Validator,
+) -> Schema:
+    return {
+        "batch_size": [ignore_empty, ignore_missing, natural_number_validator],
+    }

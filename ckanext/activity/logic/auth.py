@@ -221,3 +221,8 @@ def activity_delete(context: Context, data_dict: DataDict) -> AuthResult:
 def activity_delete_counts(context: Context, data_dict: DataDict) -> AuthResult:
     """Only sysadmins are authorized to read activity delete counts."""
     return {"success": False}
+
+
+def activity_delete_all(context: Context, data_dict: DataDict) -> AuthResult:
+    """Only sysadmins are authorized to delete all activities."""
+    return {"success": False}

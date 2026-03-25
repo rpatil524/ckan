@@ -3,6 +3,7 @@
 import datetime
 import hashlib
 import os
+import re
 import sys
 from typing import Any
 
@@ -19,6 +20,24 @@ import ckan.exceptions
 from ckan.tests import helpers, factories
 
 CkanUrlException = ckan.exceptions.CkanUrlException
+
+
+def _remove_whitespace(text):
+    """
+    Remove new lines and indentation to make it easier to match markup
+    e.g.
+
+    <ul>
+        <li>
+            <span>Test</span>
+        </li>
+    </ul>
+
+    becomes
+
+    <ul><li><span>Test</span></li></ul>
+    """
+    return re.sub(r'\n\s+', '', text)
 
 
 class BaseUrlFor(object):
@@ -653,11 +672,11 @@ class TestBuildNavMain(object):
         assert link == '<a class="css-class" href="https://www.example.com" target="_blank">Example Link</a>'
 
         link2 = h.link_to('display_name', h.url_for('dataset.search', tags='name'), class_='tag')
-        link2 == '<a class="tag" href="/dataset/?tags=name">display_name</a>'
+        assert link2 == '<a class="tag" href="/dataset/?tags=name">display_name</a>'
 
     def test_build_nav_icon(self):
         link = h.build_nav_icon('organization.edit', 'Edit', id='org-id', icon='pencil')
-        assert link == '<li><a href="/organization/edit/org-id"><i class="fa fa-pencil"></i> Edit</a></li>'
+        assert _remove_whitespace(link) == '<li><a href="/organization/edit/org-id"><i class="fa fa-pencil"></i> Edit</a></li>'
 
 
 class TestRemoveUrlParam:

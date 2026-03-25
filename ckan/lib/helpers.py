@@ -864,24 +864,40 @@ def _link_to(text: str, *args: Any, **kwargs: Any) -> Markup:
             active = ''
         return kwargs.pop('class_', '') + active or None
 
-    def _create_link_text(text: str, **kwargs: Any):
-        ''' Update link text to add a icon or span if specified in the
-        kwargs '''
-        if kwargs.pop('inner_span', None):
-            text = literal('<span>') + text + literal('</span>')
-        if icon:
-            text = literal('<i class="fa fa-%s"></i> ' % icon) + text
-        return text
-
     icon = kwargs.pop('icon', None)
+    inner_span = kwargs.pop('inner_span', None)
     cls = _link_class(kwargs)
     title = kwargs.pop('title', kwargs.pop('title_', None))
-    return link_to(
-        _create_link_text(text, **kwargs),
-        url_for(*args, **kwargs),
-        cls=cls,
-        title=title
-    )
+
+    label = text
+    if inner_span:
+        label = dom_tags.span(text)
+    elif icon:
+        label = " " + label
+
+    if icon:
+
+        icon = dom_tags.i(
+            cls=f"fa fa-{icon}"
+        )
+
+        out = dom_tags.a(
+            href=url_for(*args, **kwargs),
+            cls=cls,
+            title=title
+        )
+
+        out.add(icon, label)    # noqa
+
+    else:
+        out = dom_tags.a(
+            label,
+            href=url_for(*args, **kwargs),
+            cls=cls,
+            title=title
+        )
+
+    return literal(str(out))
 
 
 def _preprocess_dom_attrs(attrs: dict[str, Any]) -> dict[str, Any]:
@@ -904,7 +920,7 @@ def link_to(label: Optional[str], url: str, **attrs: Any) -> Markup:
     attrs['href'] = url
     if label == '' or label is None:
         label = url
-    return literal(str(dom_tags.a(raw_dom_tags(label), **attrs)))
+    return literal(str(dom_tags.a(label, **attrs)))
 
 
 @core_helper

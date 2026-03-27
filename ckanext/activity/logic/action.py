@@ -792,16 +792,16 @@ def _delete_activities_with_keep(
 
     # Order activities by timestamp within each object_id and rank them
     # (i.e. number them).
-    ranked = (
-        query
-        .with_entities(
-            model_activity.Activity.id,
+    filtered = query.subquery("filtered")
+    windowed = (
+        sa.select(
+            filtered.c.id,
             sa.func.row_number()
             .over(
-                partition_by=model_activity.Activity.object_id,
+                partition_by=filtered.c.object_id,
                 order_by=sa.desc(
                     sa.func.coalesce(
-                        model_activity.Activity.timestamp,
+                        filtered.c.timestamp,
                         sa.literal(
                             datetime.datetime.min,
                             type_=model_activity.Activity.timestamp.type,
@@ -809,37 +809,44 @@ def _delete_activities_with_keep(
                     )
                 ),
             )
-            .label("rank"),
+            .label("per_obj_order"),
         )
-        .subquery("ranked")
+        .cte("windowed")
     )
 
     # Get the ids of activities where rank is bigger than keep
     # (.e.g if `keep` is 5, activities from position 6 onward)
     ids_to_delete = (
-        session.query(ranked.c.id)
-        .filter(ranked.c.rank > keep)
+        sa.select(windowed.c.id)
+        .where(windowed.c.per_obj_order > keep)
     )
 
-    if ids_to_delete.count() == 0:
+    count = session.execute(
+        sa.select(sa.func.count()).select_from(ids_to_delete.subquery())
+    ).scalar()
+
+    if count == 0:
         return {
             "message": tk._("No activities found matching the specified criteria.")
         }
 
-    # Delete acivities
-    session.query(model_activity.ActivityDetail).filter(
-        detail_table.c.activity_id.in_(ids_to_delete)
-    ).delete(synchronize_session=False)
-
-    deleted_count = (
-        session.query(model_activity.Activity)
-        .filter(model_activity.Activity.id.in_(ids_to_delete))
-        .delete(synchronize_session=False)
+    # Delete activities
+    session.execute(
+        sa.delete(model_activity.ActivityDetail).where(
+            detail_table.c.activity_id.in_(ids_to_delete)
+        )
     )
+    result = session.execute(
+        sa.delete(model_activity.Activity).where(
+            model_activity.Activity.id.in_(ids_to_delete)
+        )
+    )
+
     if commit:
         session.commit()
+
     msg = tk._("Deleted {amount} rows from the activity table.").format(
-        amount=deleted_count
+        amount=result.rowcount
     )
     return {"message": msg}
 

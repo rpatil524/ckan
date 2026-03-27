@@ -81,7 +81,6 @@ def activities(
         )
         context: types.Context = {
             "user": site_user["name"],
-            "defer_commit": not force,
         }
         data_dict: dict[str, Any] = {
             "start_date": start_date,

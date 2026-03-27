@@ -211,3 +211,13 @@ def recently_changed_packages_activity_list(
     visible. Visible to all by default.
     Note that the actual datasets shown will be filtered by permission labels"""
     return {"success": True}
+
+
+def activity_delete_counts(context: Context, data_dict: DataDict) -> AuthResult:
+    """Only sysadmins are authorized to read activity delete counts."""
+    return {"success": False}
+
+
+def activity_delete_all(context: Context, data_dict: DataDict) -> AuthResult:
+    """Only sysadmins are authorized to delete all activities."""
+    return {"success": False}

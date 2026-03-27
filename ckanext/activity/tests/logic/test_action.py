@@ -3190,3 +3190,77 @@ class TestActivityDeleteByDateRangeOrOffset:
         assert act_feb["id"] in remaining_ids
         assert jan_date_str not in remaining_dates
         assert feb_date_str in remaining_dates
+
+
+@pytest.mark.ckan_config("ckan.plugins", "activity")
+@pytest.mark.usefixtures("with_plugins", "clean_db")
+class TestActivityDeleteAll:
+    def test_activity_delete_all_removes_every_row(self):
+        sysadmin = factories.Sysadmin()
+        dataset = factories.Dataset()
+        ActivityFactory(
+            activity_type="changed package",
+            object_id=dataset["id"],
+            user_id=sysadmin["id"],
+        )
+        model.Session.commit()
+        n_before = model.Session.query(Activity).count()
+        assert n_before >= 1
+
+        result = helpers.call_action(
+            "activity_delete_all",
+            context={"user": sysadmin["name"]},
+        )
+
+        assert result["message"] == (
+            f"Deleted {n_before} rows from the activity table."
+        )
+        assert model.Session.query(Activity).count() == 0
+
+    def test_activity_delete_all_respects_batch_size(self):
+        sysadmin = factories.Sysadmin()
+        dataset = factories.Dataset()
+        activity_dict = {
+            "activity_type": "changed package",
+            "object_id": dataset["id"],
+            "user_id": sysadmin["id"],
+        }
+        for _ in range(4):
+            ActivityFactory(**activity_dict)
+        model.Session.commit()
+        n_before = model.Session.query(Activity).count()
+        result = helpers.call_action(
+            "activity_delete_all",
+            context={"user": sysadmin["name"]},
+            batch_size=2,
+        )
+        assert result["message"] == (
+            f"Deleted {n_before} rows from the activity table."
+        )
+        assert model.Session.query(Activity).count() == 0
+
+    def test_activity_delete_all_empty_table(self):
+        sysadmin = factories.Sysadmin()
+        factories.Dataset()
+        model.Session.commit()
+        model.Session.query(ActivityDetail).delete()
+        model.Session.query(Activity).delete()
+        model.Session.commit()
+        assert model.Session.query(Activity).count() == 0
+
+        result = helpers.call_action(
+            "activity_delete_all",
+            context={"user": sysadmin["name"]},
+        )
+        assert (
+            result["message"]
+            == "No activities found matching the specified criteria."
+        )
+
+    def test_normal_user_cannot_activity_delete_all(self):
+        user = factories.User()
+        with pytest.raises(tk.NotAuthorized):
+            tk.get_action("activity_delete_all")(
+                {"user": user["name"]},
+                {},
+            )

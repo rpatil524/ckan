@@ -28,7 +28,6 @@ from typing import (
 
 
 import dominate.tags as dom_tags
-from dominate.util import raw as raw_dom_tags
 from markdown import markdown
 from bleach import clean as bleach_clean, ALLOWED_TAGS, ALLOWED_ATTRIBUTES
 from ckan.common import asbool, config, current_user
@@ -887,7 +886,7 @@ def _link_to(text: str, *args: Any, **kwargs: Any) -> Markup:
             title=title
         )
 
-        out.add(icon, label)    # noqa
+        out.add(icon, label)  # type: ignore
 
     else:
         out = dom_tags.a(

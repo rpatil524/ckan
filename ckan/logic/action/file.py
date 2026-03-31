@@ -47,9 +47,7 @@ log = logging.getLogger(__name__)
 
 def _set_user_owner(context: Context, item_type: str, item_id: str):
     """Add user from context as file owner."""
-    cache = logic.ContextCache(context)
-    user = cache.get("user", context["user"], lambda: model.User.get(context["user"]))
-    if user:
+    if user := context.get("auth_user_obj"):
         owner = model.FileOwner(
             item_id=item_id,
             item_type=item_type,
@@ -319,8 +317,6 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    logic.ContextCache(context).set("file", fileobj.id, fileobj)
-
     return fileobj.dictize(context)
 
 
@@ -371,8 +367,6 @@ def file_register(
 
     if not context.get("defer_commit"):
         context["session"].commit()
-
-    logic.ContextCache(context).set("file", fileobj.id, fileobj)
 
     return fileobj.dictize(context)
 
@@ -439,11 +433,10 @@ def _file_search(  # noqa: C901, PLR0912, PLR0915
 
     stmt = stmt.limit(data_dict["rows"]).offset(data_dict["start"])
 
-    cache = logic.ContextCache(context)
-    results: list[model.File] = [
-        cache.set("file", f.id, f) for f in context["session"].scalars(stmt)
-    ]
-    return {"count": total, "results": [f.dictize(context) for f in results]}
+    return {"count": total, "results": [
+        f.dictize(context)
+        for f in context["session"].scalars(stmt)
+    ]}
 
 
 @logic.validate(schema.file_delete)
@@ -472,9 +465,7 @@ def file_delete(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     """
     logic.check_access("file_delete", context, data_dict)
 
-    cache = logic.ContextCache(context)
-
-    fileobj = cache.get_model("file", data_dict["id"], model.File)
+    fileobj = context["session"].get(model.File, data_dict["id"])
 
     if not fileobj:
         raise logic.NotFound("file")
@@ -506,8 +497,6 @@ def file_delete(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    logic.ContextCache(context).invalidate("file", fileobj.id)
-
     return fileobj.dictize(context)
 
 
@@ -530,8 +519,7 @@ def file_show(context: Context, data_dict: dict[str, Any]) -> ActionResult.FileS
     """
     logic.check_access("file_show", context, data_dict)
 
-    cache = logic.ContextCache(context)
-    fileobj = cache.get_model("file", data_dict["id"], model.File)
+    fileobj = context["session"].get(model.File, data_dict["id"])
     if not fileobj:
         raise logic.NotFound("file")
 
@@ -559,8 +547,7 @@ def file_rename(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     """
     logic.check_access("file_rename", context, data_dict)
 
-    cache = logic.ContextCache(context)
-    fileobj = cache.get_model("file", data_dict["id"], model.File)
+    fileobj = context["session"].get(model.File, data_dict["id"])
     if not fileobj:
         raise logic.NotFound("file")
 
@@ -587,8 +574,7 @@ def file_pin(context: Context, data_dict: dict[str, Any]) -> ActionResult.FilePi
     """
     logic.check_access("file_pin", context, data_dict)
 
-    cache = logic.ContextCache(context)
-    fileobj = cache.get_model("file", data_dict["id"], model.File)
+    fileobj = context["session"].get(model.File, data_dict["id"])
     if not fileobj:
         raise logic.NotFound("file")
 
@@ -617,8 +603,7 @@ def file_unpin(context: Context, data_dict: dict[str, Any]) -> ActionResult.File
     """
     logic.check_access("file_unpin", context, data_dict)
 
-    cache = logic.ContextCache(context)
-    fileobj = cache.get_model("file", data_dict["id"], model.File)
+    fileobj = context["session"].get(model.File, data_dict["id"])
     if not fileobj:
         raise logic.NotFound("file")
 
@@ -688,9 +673,7 @@ def file_ownership_transfer(
     """
     logic.check_access("file_ownership_transfer", context, data_dict)
 
-    cache = logic.ContextCache(context)
-
-    fileobj = cache.get_model("file", data_dict["id"], model.File)
+    fileobj = context["session"].get(model.File, data_dict["id"])
     if not fileobj:
         raise logic.NotFound("file")
 

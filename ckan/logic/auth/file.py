@@ -79,14 +79,13 @@ def _get_user(context: types.Context) -> model.User | None:
     if current_user and current_user.name == context["user"]:
         return cast(model.User, current_user)
 
-    cache = logic.ContextCache(context)
-    return cache.get("user", context["user"], lambda: model.User.get(context["user"]))
+    return model.User.get(context["user"])
 
 
 def _get_file(context: Context, file_id: str) -> model.File | None:
     """Get/cache the file object."""
-    cache = logic.ContextCache(context)
-    return cache.get_model("file", file_id, model.File)
+    session = context.get("session", model.Session)
+    return session.get(model.File, file_id)
 
 
 # Permissions #################################################################

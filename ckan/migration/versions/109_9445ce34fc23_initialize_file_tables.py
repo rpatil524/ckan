@@ -34,6 +34,7 @@ def upgrade():
             "size", sa.BIGINT(), server_default=sa.text("'0'::bigint"), nullable=False
         ),
         sa.Column("hash", sa.TEXT(), server_default=sa.text("''"), nullable=False),
+        sa.Column("algorithm", sa.TEXT(), server_default=sa.text("''"), nullable=False),
         sa.Column(
             "created",
             postgresql.TIMESTAMP(timezone=True),

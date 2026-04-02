@@ -40,6 +40,7 @@ class File:
         content_type (str): MIMEtype
         size (int): size in bytes
         hash (str): checksum
+        algorithm (str): algorithm used for checksum
         created (datetime): date of creation
         storage_data (dict[str, Any]): additional data set by storage
         plugin_data (dict[str, Any]): additional data set by plugins
@@ -53,6 +54,7 @@ class File:
             content_type="text/plain",
             size=100,
             hash="abc123",
+            algorithm="md5",
         )
         ```
     """
@@ -72,6 +74,7 @@ class File:
     content_type: Mapped[text] = mapped_column(default="application/octet-stream")
     size: Mapped[bigint] = mapped_column(default=0)
     hash: Mapped[text] = mapped_column(default="")
+    algorithm: Mapped[text] = mapped_column(default="")
 
     created: Mapped[datetime_tz] = mapped_column(
         default=None, insert_default=sa.func.now()

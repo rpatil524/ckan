@@ -469,9 +469,12 @@ def _file_search(  # noqa: C901, PLR0912, PLR0915
     columns = {
         "name": model.File.__table__.c.name,
         "storage": model.File.__table__.c.storage,
+        "location": model.File.__table__.c.location,
         "size": model.File.__table__.c.size,
         "hash": model.File.__table__.c.hash,
         "created": model.File.__table__.c.created,
+        "storage_data": model.File.__table__.c.storage_data,
+        "plugin_data": model.File.__table__.c.plugin_data,
         "owner_id": model.FileOwner.__table__.c.owner_id,
         "owner_type": model.FileOwner.__table__.c.owner_type,
         "pinned": model.FileOwner.__table__.c.pinned,

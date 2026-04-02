@@ -58,7 +58,7 @@ class TestFileCreate:
     def test_name_secured(self, file_factory: types.TestFactory):
         """Filename is sanitized even without location transformers."""
         bad_name = fake.unique.file_path()
-        good_name = bad_name.lstrip("/").replace("/", "_")
+        good_name = bad_name.rsplit("/", 1)[-1]
 
         result = file_factory(name=bad_name)
         assert result["location"] == good_name
@@ -285,7 +285,7 @@ class TestFileRename:
     def test_name_secured(self, file: dict[str, Any]):
         """Filename is sanitized."""
         bad_name = fake.unique.file_path()
-        good_name = bad_name.lstrip("/").replace("/", "_")
+        good_name = bad_name.rsplit("/", 1)[-1]
 
         result = call_action("file_rename", id=file["id"], name=bad_name)
 

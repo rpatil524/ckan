@@ -71,9 +71,10 @@ class Uploader(fk.Uploader):
     >>>             for chunk in reader:
     >>>                 dest.write(chunk)
     >>>         return FileData(
-    >>>             location, upload.size,
-    >>>             upload.content_type,
-    >>>             reader.get_hash()
+    >>>             location, size=upload.size,
+    >>>             content_type=upload.content_type,
+    >>>             hash=reader.get_hash(),
+    >>>             algorithm=self.storage.settings.hashing_algorithm,
     >>>         )
 
     """
@@ -247,8 +248,8 @@ class Storage(fk.Storage):
 
         declaration.declare_bool(key.initialize).set_description(
             "Prepare storage backend for uploads(create path, bucket, DB)."
-            + " This option depends on the adapter and can be ignored if an adapter"
-            + " cannot safely initialize the storage path. Always prefer manual"
+            + " This option depends on\nthe adapter and can be ignored if an adapter"
+            + " cannot safely initialize the storage path.\nAlways prefer manual"
             + " creation of location specified in the ``path`` option.",
         )
 
@@ -263,6 +264,16 @@ class Storage(fk.Storage):
             "Descriptive name of the storage used for debugging.\nWhen empty,"
             + " name from the config option is used,"
             + " i.e: `ckanext.files.storage.DEFAULT_NAME...`",
+        )
+
+        declaration.declare(key.hashing_algorithm, "md5").set_description(
+            "Hashing algorithm used to calculate file's hash. This option is used by"
+            " uploaders to calculate\nfile's hash and store it in FileData. Supported"
+            " values depend on the implementation\nof the uploader, but common"
+            " algorithms are: `md5`, `sha1`, `sha256`.\nIf storage adapter does not"
+            " support customization of algorithm, it will ignore this option.\nFileData"
+            " object produced by storage's ``upload`` method should contain the actual"
+            " algorithm\nused to compute the hash."
         )
 
         declaration.declare_list(key.location_transformers, None).set_description(

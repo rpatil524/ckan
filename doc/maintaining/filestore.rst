@@ -872,7 +872,7 @@ Storage utilities
 
    Information required by storage to operate the file.
 
-   >>> info = FileData("local/path.txt", 123, "text/plain", md5_of_content)
+   >>> info = FileData("local/path.txt", size=123, content_type="text/plain", hash=md5_of_content, algorithm="md5")
 
    Location of the file usually requires sanitization and as a reminder about
    this step, typechecker produces warning whenever plain string is passed to

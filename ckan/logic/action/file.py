@@ -775,7 +775,7 @@ def file_owner_scan(
 ) -> ActionResult.FileOwnerScan:
     """List files of the owner.
 
-    .. warning:: This action has hight probability to be changed or removed in
+    .. warning:: This action has a high probability to be changed or removed in
         future.
 
     This action requires ``<owner_type>_update`` permission when

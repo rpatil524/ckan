@@ -523,7 +523,7 @@ def file_delete(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     fileobj = context["session"].get(model.File, data_dict["id"])
 
     if not fileobj:
-        raise logic.NotFound("file")
+        raise logic.NotFound("file id not found")
 
     file_data = files.FileData.from_object(fileobj)
     storage = files.get_storage(fileobj.storage)

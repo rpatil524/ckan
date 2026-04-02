@@ -252,9 +252,27 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
 
            ckan.files.storage.MY_STORAGE.location_transformers = my_ext:nested_path
 
-    This action is not intended to be used directly. The recommended approach
-    is to register a different action for handling specific type of uploads and
-    call the current action internally:
+    This action is not intended to be used directly. By default only sysadmin
+    is allowed to call this action. For simple workflows, access can be also
+    granted to every registered user via
+    :ref:`ckan.files.authenticated_uploads.allow` config option. Enabling this
+    option also requires specifying names of storages that can be used by
+    common users. For this purpose, use
+    :ref:`ckan.files.authenticated_uploads.storages` config option. This option
+    is not recommended for portals with public user registration, because it
+    literally allows user to turn CKAN into his personal file storage.
+
+    Also, there is no built-in option to enable uploads for anonymous users,
+    because files will be created without an owner and may remain untracked in
+    the system consuming space and causing extra charges for the file storage.
+
+    Instead of enabling access to this action for every registered user, the
+    recommended approach is to create a different action for handling specific
+    type of uploads. Implement dedicated auth function for this new action and
+    then use it to upload files into a signle target storage, controlling
+    upload quota per user or any other aspects of uploads. Internally, this new
+    action can call ``file_create`` bypassing its authorization, as long as new
+    action has reliable auth function:
 
     .. code-block:: python
 
@@ -285,7 +303,7 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
 
     .. note:: Requires storage with `CREATE` capability.
 
-    :param name: human-readable name of the file.
+    :param name: human-readable name of the file, unique per storage.
         Defaults to filename of upload
     :type name: str, optional
     :param storage: name of the storage that will handle the upload.

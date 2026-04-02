@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from datetime import datetime, timezone
 
 import sqlalchemy as sa
@@ -11,6 +13,9 @@ from ckan.model.types import make_uuid
 from ckan.types import Context
 
 from .meta import registry
+
+if TYPE_CHECKING:
+    from .file import File
 
 
 def now():
@@ -26,8 +31,7 @@ class FileOwner:
     """Model with details about current owner of an item.
 
     Args:
-        item_id (str): ID of the owned object
-        item_type (str): type of the owned object
+        file_id (str): ID of the owned object
         owner_id (str): ID of the owner
         owner_type (str): Type of the owner
         pinned (bool): is ownership protected from transfer
@@ -35,27 +39,38 @@ class FileOwner:
     Example:
         ```py
         owner = FileOwner(
-            item_id=smth.id,
-            item_type=smth_type,
+            file_id=smth.id,
             owner_id=user.id,
             owner_type="user,
         )
         ```
     """
+
     __table__: ClassVar[sa.Table]
 
     __tablename__ = "file_owner"
 
     __table_args__ = (
         sa.Index("idx_owner_owner", "owner_type", "owner_id", unique=False),
+        sa.ForeignKeyConstraint(
+            ["file_id"],
+            ["file.id"],
+            "file_owner_file_id_fkey",
+            ondelete="CASCADE",
+        ),
     )
 
-    item_id: Mapped[text] = mapped_column(primary_key=True)
-    item_type: Mapped[text] = mapped_column(primary_key=True)
+    file_id: Mapped[text] = mapped_column(primary_key=True)
     owner_id: Mapped[text]
     owner_type: Mapped[text]
 
     pinned: Mapped[bool] = mapped_column(default=False)
+
+    files: Mapped[list["File"]] = relationship(
+        back_populates="owner",
+        init=False,
+        compare=False,
+    )
 
     def select_history(self):
         """Returns a select statement to fetch ownership history."""
@@ -63,8 +78,7 @@ class FileOwner:
             sa.select(FileOwnerTransferHistory)
             .join(FileOwner)
             .where(
-                FileOwnerTransferHistory.item_id == self.item_id,
-                FileOwnerTransferHistory.item_type == self.item_type,
+                FileOwnerTransferHistory.file_id == self.file_id,
             )
         )
 
@@ -77,8 +91,7 @@ class FileOwnerTransferHistory:
     """Model for tracking ownership history of the file.
 
     Args:
-        item_id (str): ID of the owned object
-        item_type (str): type of the owned object
+        file_id (str): ID of the owned object
         owner_id (str): ID of the previous owner
         owner_type (str): Type of the previous owner
         leave_date (datetime): date of ownership transfer to a different owner
@@ -87,7 +100,7 @@ class FileOwnerTransferHistory:
     Example:
         ```py
         record = FileOwnerTransferHistory(
-            prev_owner.item_id, prev_owner.item_type,
+            prev_owner.file_id,
             prev_owner.owner_id, prev_owner.owner_type,
         )
         ```
@@ -96,17 +109,16 @@ class FileOwnerTransferHistory:
     __tablename__ = "file_owner_transfer_history"
 
     __table_args__ = (
-        sa.Index("idx_owner_transfer_item", "item_id", "item_type", unique=False),
+        sa.Index("idx_owner_transfer_item", "file_id", unique=False),
         sa.ForeignKeyConstraint(
-            ["item_id", "item_type"],
-            ["file_owner.item_id", "file_owner.item_type"],
-            "owner_transfer_history_item_id_item_type_fkey",
+            ["file_id"],
+            ["file_owner.file_id"],
+            "owner_transfer_history_file_id_fkey",
             ondelete="CASCADE",
         ),
     )
 
-    item_id: Mapped[text]
-    item_type: Mapped[text]
+    file_id: Mapped[text]
     owner_id: Mapped[text]
     owner_type: Mapped[text]
 
@@ -124,8 +136,7 @@ class FileOwnerTransferHistory:
     @classmethod
     def from_owner(cls, owner: FileOwner, actor: str = ""):
         return cls(
-            item_id=owner.item_id,
-            item_type=owner.item_type,
+            file_id=owner.file_id,
             owner_id=owner.owner_id,
             owner_type=owner.owner_type,
             actor=actor,

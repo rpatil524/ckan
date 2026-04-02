@@ -57,8 +57,7 @@ def upgrade():
 
     op.create_table(
         "file_owner",
-        sa.Column("item_type", sa.TEXT(), nullable=False, primary_key=True),
-        sa.Column("item_id", sa.TEXT(), nullable=False, primary_key=True),
+        sa.Column("file_id", sa.TEXT(), nullable=False, primary_key=True),
         sa.Column("owner_type", sa.TEXT(), nullable=False),
         sa.Column("owner_id", sa.TEXT(), nullable=False),
         sa.Column(
@@ -66,12 +65,20 @@ def upgrade():
         ),
         sa.Index("idx_owner_owner", "owner_type", "owner_id", unique=False),
     )
+    op.create_foreign_key(
+        "file_owner_file_id_fkey",
+        "file_owner",
+        "file",
+        ["file_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+
 
     op.create_table(
         "file_owner_transfer_history",
         sa.Column("id", sa.TEXT(), nullable=False, primary_key=True),
-        sa.Column("item_id", sa.TEXT(), nullable=False),
-        sa.Column("item_type", sa.TEXT(), nullable=False),
+        sa.Column("file_id", sa.TEXT(), nullable=False),
         sa.Column("owner_id", sa.TEXT(), nullable=False),
         sa.Column("owner_type", sa.TEXT(), nullable=False),
         sa.Column(
@@ -82,14 +89,13 @@ def upgrade():
         ),
         sa.Column("actor", sa.TEXT(), nullable=False),
         sa.Column("action", sa.TEXT(), nullable=False, server_default="transfer"),
-        sa.Index("idx_owner_transfer_item", "item_id", "item_type"),
     )
     op.create_foreign_key(
-        "owner_transfer_history_item_id_item_type_fkey",
+        "owner_transfer_history_file_id_fkey",
         "file_owner_transfer_history",
         "file_owner",
-        ["item_id", "item_type"],
-        ["item_id", "item_type"],
+        ["file_id"],
+        ["file_id"],
         ondelete="CASCADE",
     )
 

@@ -84,10 +84,7 @@ class File:
     id: Mapped[text] = mapped_column(primary_key=True, default_factory=make_uuid)
 
     owner: Mapped[FileOwner | None] = relationship(
-        primaryjoin=sa.and_(
-            FileOwner.item_id == foreign(id),
-            FileOwner.item_type == "file",
-        ),
+        back_populates="files",
         single_parent=True,
         cascade="delete, delete-orphan",
         lazy="joined",

@@ -45,12 +45,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _set_user_owner(context: Context, item_type: str, item_id: str):
+def _set_user_owner(context: Context, file_id: str):
     """Add user from context as file owner."""
     if user := context.get("auth_user_obj"):
         owner = model.FileOwner(
-            item_id=item_id,
-            item_type=item_type,
+            file_id=file_id,
             owner_id=user.id,
             owner_type="user",
         )
@@ -310,7 +309,7 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     )
     context["session"].add(fileobj)
 
-    _set_user_owner(context, "file", fileobj.id)
+    _set_user_owner(context, fileobj.id)
 
     # TODO: add hook to set plugin_data using extras
 
@@ -363,7 +362,7 @@ def file_register(
     )
     context["session"].add(fileobj)
 
-    _set_user_owner(context, "file", fileobj.id)
+    _set_user_owner(context, fileobj.id)
 
     if not context.get("defer_commit"):
         context["session"].commit()
@@ -411,10 +410,7 @@ def _file_search(  # noqa: C901, PLR0912, PLR0915
 
     stmt = sa.select(model.File).outerjoin(
         model.FileOwner,
-        sa.and_(
-            model.File.id == model.FileOwner.item_id,
-            model.FileOwner.item_type == "file",
-        ),
+        model.File.id == model.FileOwner.file_id,
     )
     where = _process_filters(data_dict["filters"], columns)
     if where is not None:
@@ -696,8 +692,7 @@ def file_ownership_transfer(
 
     else:
         owner = model.FileOwner(
-            item_id=fileobj.id,
-            item_type="file",
+            file_id=fileobj.id,
             owner_id=data_dict["owner_id"],
             owner_type=data_dict["owner_type"],
         )

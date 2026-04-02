@@ -235,14 +235,14 @@ class Storage(fk.Storage):
         ).set_example("10MB")
 
         declaration.declare_list(key.supported_types, None).set_description(
-            "Space-separated list of full MIME types, or just type/subtype part."
-        ).set_example("text/csv pdf application video jpeg")
+            "Space-separated list of supported MIME types."
+        ).set_example("text/csv application/pdf image/jpeg")
 
         declaration.declare_bool(key.public).set_description(
             "Whether storage is public and allows unauthenticated access."
         )
 
-        declaration.declare_bool(key.override_existing, True).set_description(
+        declaration.declare_bool(key.overwrite_existing, True).set_description(
             "If file already exists, replace it with new content."
             + "\nThis option can be ignored by certain adapters.",
         )

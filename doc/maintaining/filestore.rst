@@ -749,7 +749,7 @@ types.
 
 * ``max_size``: The maximum size of a single upload. No limits by default.
 * ``supported_types``: Space-separated list of allowed MIME types. No restrictions by default.
-* ``override_existing``: If file already exists, replace it with new content. Enabled by default.
+* ``overwrite_existing``: If file already exists, replace it with new content. Enabled by default.
 * ``location_transformers``: List of transformations applied to the file
   location. Transformations are not applied automatically - call
   :py:meth:`~ckan.lib.files.Storage.prepare_location` to get the transformed version

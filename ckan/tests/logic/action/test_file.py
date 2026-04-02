@@ -64,7 +64,7 @@ class TestFileCreate:
         assert result["location"] == good_name
 
     @pytest.mark.ckan_config(
-        "ckan.files.storage.test.location_transformers", ["uuid_prefix"]
+        "ckan.files.storage.test.location_transformers", ["uuid4_prefix"]
     )
     def test_location_transformed(self, file_factory: types.TestFactory):
         """Location transformers are applied to the location."""

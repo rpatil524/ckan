@@ -511,10 +511,7 @@ def stats_owner(storage_name: str | None, verbose: bool):
         .where(model.File.storage == storage_name)
         .outerjoin(
             model.FileOwner,
-            sa.and_(
-                model.FileOwner.item_id == model.File.id,
-                model.FileOwner.item_type == "file",
-            ),
+            model.FileOwner.file_id == model.File.id,
         )
         .group_by(owner_col)
     ).order_by(owner_col)

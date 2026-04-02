@@ -99,7 +99,7 @@ class TestFilesLoader:
                 prefix.type,
                 prefix.max_size,
                 prefix.supported_types,
-                prefix.override_existing,
+                prefix.overwrite_existing,
                 prefix.name,
                 prefix.location_transformers,
                 prefix.path,

@@ -8,9 +8,6 @@ import ckan.plugins.toolkit as tk
 from ckan import types
 from ckan.tests.helpers import call_action
 
-# operation == "file_transfer" and config["ckan.files.owner.transfer_as_update"]
-# operation == "file_scan" and config["ckan.files.owner.scan_as_update"]
-
 
 @pytest.mark.usefixtures("non_clean_db")
 class TestPermissionManage:

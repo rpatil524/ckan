@@ -31,10 +31,10 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy.exc import ProgrammingError
-from werkzeug.utils import secure_filename
 
 from ckan import logic, model
 from ckan.lib import files
+from ckan.lib.munge import munge_filename
 from ckan.logic.schema import file as schema
 from ckan.types import ActionResult, Context
 
@@ -222,8 +222,8 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     and rejected by another, depending on its configuration.
 
     ``name`` parameter is used to compute the name of the file in the
-    storage. It always sanitized with ``werkzeug.utils.secure_filename`` to
-    avoid directory traversal. Additionally, it can be transformed via
+    storage. It always sanitized with :py:func:`~ckan.lib.munge.munge_filename`
+    to avoid directory traversal. Additionally, it can be transformed via
     storage's ``location_transformers``. These are the function that are
     applied to the name after sanitization anb before file is written to the
     storage. For example, filename can be transformed into UUIDv4 using
@@ -235,17 +235,16 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
 
     .. note::
 
-       Because of sanitization, any ``/`` in the name will be replaced
-       with the underscore. This step is mandatory and cannot be disabled
-       because it creates a serious security issue for the portal. Usually,
-       when uploads into different directories are required, one can use
-       different storages that are connected to the same filesystem/cloud, but
-       point to the different directory via ``path`` option. If specific
-       storage must upload files to the nested directory structure, consider
-       using placeholders in the name of the file and custom transformer that
-       converts placeholders into path separators. For example, use tripple
-       underscore instead of ``/``: ``path___of___the___file.txt``. Then
-       register transformer using
+       Because of sanitization, path fragments preceeding the file's name will
+       be removed. This step is mandatory and cannot be disabled because it
+       creates a serious security issue for the portal. Usually, when uploads
+       into different directories are required, one can use different storages
+       that are connected to the same filesystem/cloud, but point to the
+       different directory via ``path`` option. If specific storage must upload
+       files to the nested directory structure, consider using placeholders in
+       the name of the file and custom transformer that converts placeholders
+       into path separators. For example, use tripple underscore instead of
+       ``/``: ``path___of___the___file.txt``. Then register transformer using
        :py:meth:`~ckan.plugins.interfaces.IFiles.files_get_location_transformers`::
 
            def files_get_location_transformers(self):
@@ -329,7 +328,7 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
             raise logic.ValidationError({"upload": [msg]})
         data_dict["name"] = filename
 
-    filename = secure_filename(data_dict["name"])
+    filename = munge_filename(data_dict["name"])
 
     location = storage.prepare_location(filename, data_dict["upload"])
     stmt = model.File.by_location(location, data_dict["storage"])
@@ -399,7 +398,7 @@ def file_register(
         raise logic.NotFound("file")
 
     fileobj = model.File(
-        name=secure_filename(storage_data.location),
+        name=munge_filename(storage_data.location),
         storage=data_dict["storage"],
         **storage_data.as_dict(),
     )
@@ -590,7 +589,7 @@ def file_rename(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     if not fileobj:
         raise logic.NotFound("file")
 
-    fileobj.name = secure_filename(data_dict["name"])
+    fileobj.name = munge_filename(data_dict["name"])
 
     if not context.get("defer_commit"):
         context["session"].commit()

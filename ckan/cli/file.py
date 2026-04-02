@@ -11,13 +11,13 @@ import click
 import file_keeper as fk
 import sqlalchemy as sa
 from babel.dates import format_datetime, format_timedelta
-from werkzeug.utils import secure_filename
 
 from ckan import logic, model
 from ckan.common import config
 from ckan.config.declaration import Declaration, Key
 from ckan.config.declaration.load import config_tree
 from ckan.lib import files
+from ckan.lib.munge import munge_filename
 
 from . import error_shout
 
@@ -139,7 +139,7 @@ def file_stream(  # noqa: C901
         if os.path.isdir(output):
             # stream into the specified directory with original filename. But
             # make sure the name is sanitized, as we don't control it
-            output = os.path.join(output, secure_filename(file_obj.name))
+            output = os.path.join(output, munge_filename(file_obj.name))
         try:
             dest = open(output, "xb")  # noqa: SIM115
         except FileExistsError:

@@ -45,17 +45,6 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-def _set_user_owner(context: Context, file_id: str):
-    """Add user from context as file owner."""
-    if user := context.get("auth_user_obj"):
-        owner = model.FileOwner(
-            file_id=file_id,
-            owner_id=user.id,
-            owner_type="user",
-        )
-        context["session"].add(owner)
-
-
 def _process_filters(  # noqa: C901
     filters: dict[str, Any], columns: Mapping[str, Column[Any]]
 ) -> ColumnElement[bool] | None:
@@ -351,9 +340,13 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     )
     context["session"].add(fileobj)
 
-    _set_user_owner(context, fileobj.id)
-
-    # TODO: add hook to set plugin_data using extras
+    if userobj := context.get("auth_user_obj"):
+        owner = model.FileOwner(
+            file_id=fileobj.id,
+            owner_id=userobj.id,
+            owner_type="user",
+        )
+        context["session"].add(owner)
 
     if not context.get("defer_commit"):
         context["session"].commit()
@@ -404,7 +397,13 @@ def file_register(
     )
     context["session"].add(fileobj)
 
-    _set_user_owner(context, fileobj.id)
+    if userobj := context.get("auth_user_obj"):
+        owner = model.FileOwner(
+            file_id=fileobj.id,
+            owner_id=userobj.id,
+            owner_type="user",
+        )
+        context["session"].add(owner)
 
     if not context.get("defer_commit"):
         context["session"].commit()

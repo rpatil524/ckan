@@ -533,7 +533,7 @@ def file_delete(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     fileobj = context["session"].get(model.File, data_dict["id"])
 
     if not fileobj:
-        raise logic.NotFound("file")
+        raise logic.NotFound("file id not found")
 
     file_data = files.FileData.from_object(fileobj)
     storage = files.get_storage(fileobj.storage)
@@ -785,7 +785,7 @@ def file_owner_scan(
 ) -> ActionResult.FileOwnerScan:
     """List files of the owner.
 
-    .. warning:: This action has hight probability to be changed or removed in
+    .. warning:: This action has a high probability to be changed or removed in
         future.
 
     This action requires ``<owner_type>_update`` permission when

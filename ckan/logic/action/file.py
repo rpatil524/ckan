@@ -465,7 +465,17 @@ def _file_search(  # noqa: C901, PLR0912, PLR0915
     data_dict.setdefault("filters", {})
     data_dict.setdefault("rows", 10)
     data_dict.setdefault("start", 0)
-    columns = dict(**model.File.__table__.c, **model.FileOwner.__table__.c)
+
+    columns = {
+        "name": model.File.__table__.c.name,
+        "storage": model.File.__table__.c.storage,
+        "size": model.File.__table__.c.size,
+        "hash": model.File.__table__.c.hash,
+        "created": model.File.__table__.c.created,
+        "owner_id": model.FileOwner.__table__.c.owner_id,
+        "owner_type": model.FileOwner.__table__.c.owner_type,
+        "pinned": model.FileOwner.__table__.c.pinned,
+    }
 
     stmt = sa.select(model.File).outerjoin(
         model.FileOwner,
@@ -488,10 +498,10 @@ def _file_search(  # noqa: C901, PLR0912, PLR0915
 
     stmt = stmt.limit(data_dict["rows"]).offset(data_dict["start"])
 
-    return {"count": total, "results": [
-        f.dictize(context)
-        for f in context["session"].scalars(stmt)
-    ]}
+    return {
+        "count": total,
+        "results": [f.dictize(context) for f in context["session"].scalars(stmt)],
+    }
 
 
 @logic.validate(schema.file_delete)

@@ -406,7 +406,7 @@ def file_register(
     try:
         storage_data = storage.analyze(data_dict["location"])
     except files.exc.MissingFileError:
-        raise logic.NotFound("file")
+        raise logic.NotFound("file not found at location")
 
     fileobj = model.File(
         name=munge_filename(storage_data.location),

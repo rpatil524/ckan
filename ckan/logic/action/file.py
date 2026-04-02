@@ -221,6 +221,49 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     else is controlled by storage. The same file may be accepted by one storage
     and rejected by another, depending on its configuration.
 
+    ``name`` parameter is used to compute the name of the file in the
+    storage. It always sanitized with ``werkzeug.utils.secure_filename`` to
+    avoid directory traversal. Additionally, it can be transformed via
+    storage's ``location_transformers``. These are the function that are
+    applied to the name after sanitization anb before file is written to the
+    storage. For example, filename can be transformed into UUIDv4 using
+    ``uuid4`` transformer, to prevent name collisions. Alternatively, for the
+    same reason, file can be prefixed with an ISO 8601 datetime using
+    ``datetime_prefix`` transformers. After sanitization and transformations,
+    the result name must be unique in the storage, just like any normal
+    filename in the directory.
+
+    .. note::
+
+       Because of sanitization, any ``/`` in the name will be replaced
+       with the underscore. This step is mandatory and cannot be disabled
+       because it creates a serious security issue for the portal. Usually,
+       when uploads into different directories are required, one can use
+       different storages that are connected to the same filesystem/cloud, but
+       point to the different directory via ``path`` option. If specific
+       storage must upload files to the nested directory structure, consider
+       using placeholders in the name of the file and custom transformer that
+       converts placeholders into path separators. For example, use tripple
+       underscore instead of ``/``: ``path___of___the___file.txt``. Then
+       register transformer using
+       :py:meth:`~ckan.plugins.interfaces.IFiles.files_get_location_transformers`::
+
+           def files_get_location_transformers(self):
+               import os
+               def nested_path_transformer(location, upload, extras):
+                   path = os.path.sep.join(location.split("___"))
+                   if ".." in path:
+                       raise ValueError("suspicious path")
+                   return path
+
+               return {
+                   "my_ext:nested_path": nested_path_transformer,
+               }
+
+       Finally, add transformer to the storage settings::
+
+           ckan.files.storage.MY_STORAGE.location_transformers = my_ext:nested_path
+
     This action is not intended to be used directly. The recommended approach
     is to register a different action for handling specific type of uploads and
     call the current action internally:

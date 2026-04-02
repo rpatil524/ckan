@@ -25,6 +25,15 @@ MB = 1 << 20
 log = logging.getLogger(__name__)
 
 
+def _is_url(value: str):
+    """Check if the given value is a URL."""
+    try:
+        url = urlparse(value)
+        return bool(url.netloc and url.scheme)
+    except ValueError:
+        return False
+
+
 def _copy_file(input_file: IO[bytes],
                output_file: IO[bytes], max_size: int) -> None:
     input_file.seek(0)
@@ -58,7 +67,7 @@ def get_uploader(upload_to: str,
         except files.exc.UnknownStorageError:
             upload = Upload(upload_to, old_filename)
         else:
-            upload = FkUpload(upload_to, old_filename)
+            upload = FKUpload(upload_to, old_filename)
 
     return upload
 
@@ -78,7 +87,7 @@ def get_resource_uploader(data_dict: dict[str, Any]) -> PResourceUploader:
         except files.exc.UnknownStorageError:
             upload = ResourceUpload(data_dict)
         else:
-            upload = FkResourceUpload(data_dict)
+            upload = FKResourceUpload(data_dict)
 
     return upload
 
@@ -108,10 +117,13 @@ class Upload(object):
     def __init__(self,
                  object_type: str,
                  old_filename: Optional[str] = None) -> None:
-        ''' Setup upload by creating a subdirectory of the storage directory
-        of name object_type. old_filename is the name of the file in the url
-        field last time'''
+        '''Setup upload by creating a subdirectory of the storage directory
+        of name ``object_type``.
 
+        ``old_filename`` contains the name of the previous file replaced by the
+        ongoing upload. Use it to automatically remove an exiting file after
+        uploading a new one.
+        '''
         self.storage_path = None
         self.filename = None
         self.filepath = None
@@ -166,7 +178,7 @@ class Upload(object):
                 data_dict[url_field] = self.filename
 
         # keep the file if there has been no change
-        elif self.old_filename and not self.old_filename.startswith('http'):
+        elif self.old_filename and not _is_url(self.old_filename):
             if not self.clear:
                 data_dict[url_field] = self.old_filename
             if self.clear and self.url == self.old_filename:
@@ -193,8 +205,7 @@ class Upload(object):
             os.rename(self.tmp_filepath, self.filepath)
             self.clear = True
 
-        if (self.clear and self.old_filename
-                and not self.old_filename.startswith('http')
+        if (self.clear and self.old_filename and not _is_url(self.old_filename)
                 and self.old_filepath):
             try:
                 os.remove(self.old_filepath)
@@ -227,12 +238,7 @@ class Upload(object):
             declared_mimetype_from_filename,
             declared_content_type,
         ):
-            if (
-                declared_mimetype
-                and allowed_mimetypes
-                and allowed_mimetypes[0] != "*"
-                and declared_mimetype not in allowed_mimetypes
-            ):
+            if not files.is_supported_type(declared_mimetype, allowed_mimetypes):
                 raise logic.ValidationError(
                     {
                         self.file_field: [
@@ -403,7 +409,7 @@ class ResourceUpload(object):
                 pass
 
 
-class FkUpload(object):
+class FKUpload(object):
     storage: fk.Storage | None = None
     filename: Optional[str]
     object_type: Optional[str]
@@ -413,9 +419,13 @@ class FkUpload(object):
     def __init__(self,
                  object_type: str,
                  old_filename: Optional[str] = None) -> None:
-        ''' Setup upload by creating a subdirectory of the storage directory
-        of name object_type. old_filename is the name of the file in the url
-        field last time'''
+        '''Setup upload by creating a subdirectory of the storage directory
+        of name ``object_type``.
+
+        ``old_filename`` contains the name of the previous file replaced by the
+        ongoing upload. Use it to automatically remove an exiting file after
+        uploading a new one.
+        '''
         self.filename = None
         self.object_type = object_type
         self.old_filename = old_filename
@@ -452,7 +462,7 @@ class FkUpload(object):
                 data_dict[url_field] = self.filename
 
         # keep the file if there has been no change
-        elif self.old_filename and not self.old_filename.startswith('http'):
+        elif self.old_filename and not _is_url(self.old_filename):
             if not self.clear:
                 data_dict[url_field] = self.old_filename
             if self.clear and self.url == self.old_filename:
@@ -480,8 +490,7 @@ class FkUpload(object):
 
             self.clear = True
 
-        if (self.clear and self.old_filename
-                and not self.old_filename.startswith('http')):
+        if (self.clear and self.old_filename and not _is_url(self.old_filename)):
             with contextlib.suppress(files.exc.MissingFileError):
                 self.storage.remove(files.FileData(
                     files.Location(self.old_filename)
@@ -509,7 +518,7 @@ class FkUpload(object):
             self.filename = str(Path(self.filename).with_suffix(preferred_extension))
 
 
-class FkResourceUpload(object):
+class FKResourceUpload(object):
     mimetype: Optional[str]
     storage: fk.Storage | None = None
 

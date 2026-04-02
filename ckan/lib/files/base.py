@@ -23,38 +23,37 @@ FileData: TypeAlias = fk.FileData
 log = logging.getLogger(__name__)
 
 
-def is_supported_type(content_type: str, supported: Iterable[str]) -> bool:
+def is_supported_type(content_type: str | None, supported: list[str]) -> bool:
     """Check whether content_type matches supported types.
 
-    Content type is expected in `type/subtype` format. Supported types can be
-    either full content types, or just type or subtype part. For example,
-    `video/mp4` matches `video`, `mp4` or `video/mp4`.
+    Content type and list of supported types must be specified in
+    ``type/subtype`` format.
 
-    >>> is_supported_type("video/mp4", ["text", "video", "image"])
+    Additionally, supported type can be specified as a single ``*``, which
+    accepts any format. When using ``*``, do not add any other supported types,
+    as ``*`` will accept any value and there is no sense in additional options.
+
+    If either ``content_type`` or ``supported`` is empty, function returns
+    ``True``.
+
+    >>> is_supported_type("video/mp4", ["video/mp4", "image/png"])
     True
-    >>> is_supported_type("image/png", ["png", "jpeg", "gif"])
+    >>> is_supported_type("image/png", ["text/png", "image/png"])
     True
-    >>> is_supported_type("text/csv", ["text/csv", "application/json"])
+    >>> is_supported_type("image/png", ["*"])
     True
-    >>> # incorrect input format, not `type/subtype`
-    >>> is_supported_type("xxx", ["text/csv", "xxx"])
+    >>> is_supported_type("text/csv", ["application/csv", "application/json"])
     False
 
     :param content_type: tested type
     :param supported: collection of supported types
-    """
-    parts = content_type.split("/")
-    if len(parts) != 2:
-        log.warning(
-            "Expected `type/subtype` format for content type. Got: %s",
-            content_type,
-        )
-        return False
 
-    desired = {content_type, *parts}
-    return any(
-        fnmatch.fnmatch(content_type, st) if "*" in st else (st in desired)
-        for st in supported
+    """
+
+    return bool(
+        content_type
+        and supported
+        and any(st in ("*", content_type) for st in supported)
     )
 
 
@@ -71,7 +70,8 @@ class Uploader(fk.Uploader):
     >>>     ) -> FileData:
     >>>         reader = upload.hashing_reader()
     >>>         with open(location, "wb") as dest:
-    >>>             dest.write(reader.read())
+    >>>             for chunk in reader:
+    >>>                 dest.write(chunk)
     >>>         return FileData(
     >>>             location, upload.size,
     >>>             upload.content_type,
@@ -172,7 +172,7 @@ class Settings(fk.Settings):
 
     supported_types: list[str] = dataclasses.field(default_factory=list)
     """Supported types of uploads"""
-    max_size: int = 0
+    max_size: int = -1
     """Max allowed size of the upload"""
     public: bool = False
     """Whether storage is public and allows unauthenticated access."""
@@ -226,12 +226,12 @@ class Storage(fk.Storage):
         >>>     decl.declare_bool(key.enable_turbo_mode)
         >>>     decl.declare(key.secret).required()
         """
-        declaration.declare(key.max_size, 0).append_validators(
+        declaration.declare(key.max_size, -1).append_validators(
             "parse_filesize",
         ).set_description(
             "The maximum size of a single upload."
             + "\nSupports size suffixes: 42B, 2M, 24KiB, 1GB."
-            + " `0` means no restrictions.",
+            + " `-1` or any other negative value means no restrictions.",
         ).set_example("10MB")
 
         declaration.declare_list(key.supported_types, None).set_description(
@@ -248,7 +248,10 @@ class Storage(fk.Storage):
         )
 
         declaration.declare_bool(key.initialize).set_description(
-            "Prepare storage backend for uploads(create path, bucket, DB). This op",
+            "Prepare storage backend for uploads(create path, bucket, DB)."
+            + " This option depends on the adapter and can be ignored if an adapter"
+            + " cannot safely initialize the storage path. Always prefer manual"
+            + " creation of location specified in the ``path`` option.",
         )
 
         declaration.declare(key.path, "").set_description(
@@ -268,9 +271,11 @@ class Storage(fk.Storage):
             "List of transformations applied to the file location."
             "\nDepending on the storage type, sanitizing the path or removing"
             " special characters can be sensible.\nEmpty value leaves location"
-            " unchanged, `uuid` transforms location into random UUID,"
-            "\n`uuid_with_extension` transforms filename into UUID and appends original"
-            " file's extension to it.",
+            " unchanged, `uuid4` transforms location into UUIDv4,"
+            "\n`uuid4_with_extension` transforms filename into UUIDv4 and appends"
+            " original file's extension to it.\nCustom location transformers can be"
+            "  registered via ``files_get_location_transformers`` \nmethod of"
+            " ``IFiles`` interface.",
         ).set_example("datetime_prefix")
 
         declaration.declare_list(key.disabled_capabilities, None).set_description(
@@ -290,33 +295,55 @@ class Storage(fk.Storage):
         """Make Flask response with file attachment.
 
         By default, files are served as attachments and are downloaded as
-        result.
+        result. Use :ref:`ckan.files.inline_content_types` config option to
+        specify content types that must be served inline. For example,
+        following config option will render images, videos and text files in
+        browser instead of forcing download::
 
-        If rendering is safe and preferable, enable ``send_inline`` flag.
+            ckan.files.inline_content_types = image text/plain video
+
+        If rendering is safe and preferable for individual call, enable
+        ``send_inline`` flag.
+
+        If either ``send_inline`` is set to ``True``, or file has content type
+        that matches :ref:`ckan.files.inline_content_types`, it will be
+        rendered on the page. Otherwise it will be sent as an attachment and
+        downloaded by the client.
 
         :param data: file details
         :param filename: expected name of the file used instead of the real name
         :param send_inline: do not force download and try rendering file in browser
 
         :returns: Flask response with file's content
+
         """
         try:
             resp = self.reader.response(data, kwargs)
         except fk.exc.MissingFileError:
             return flask.Response(status=404)
 
-        inline_types = config["ckan.files.inline_content_types"]
-        disposition = (
-            "inline"
-            if send_inline or is_supported_type(data.content_type, inline_types)
-            else "attachment"
-        )
+        if "location" in resp.headers:
+            return resp
 
-        resp.headers.set(
-            "content-disposition",
-            disposition,
-            filename=filename or data.location,
-        )
+        if "content-type" not in resp.headers:
+            resp.headers["content-type"] = data.content_type
+
+        if "content-length" not in resp.headers:
+            resp.headers["content-length"] = data.size
+
+        if "content-disposition" not in resp.headers:
+            inline_types = config["ckan.files.inline_content_types"]
+            disposition = (
+                "inline"
+                if send_inline or is_supported_type(data.content_type, inline_types)
+                else "attachment"
+            )
+
+            resp.headers.set(
+                "content-disposition",
+                disposition,
+                filename=filename or data.location,
+            )
 
         return resp
 
@@ -327,7 +354,7 @@ class Storage(fk.Storage):
         :raises LargeUploadError: upload exceeds allowed size
         """
         max_size = self.settings.max_size
-        if max_size and size > max_size:
+        if max_size >= 0 and size > max_size:
             raise fk.exc.LargeUploadError(size, max_size)
 
     def validate_content_type(self, content_type: str):

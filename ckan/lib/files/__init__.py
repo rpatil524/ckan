@@ -22,6 +22,7 @@ from .base import (
     Settings,
     Storage,
     Uploader,
+    is_supported_type,
 )
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "storages",
     "adapters",
     "exc",
+    "is_supported_type",
 ]
 
 STORAGE_PREFIX = "ckan.files.storage."

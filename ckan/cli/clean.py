@@ -8,7 +8,7 @@ from ckan import model
 from ckan import logic
 from ckan.common import config
 from ckan.lib import files
-from ckan.lib.uploader import get_uploader, FkUpload
+from ckan.lib.uploader import get_uploader, FKUpload
 from ckan.types import Context
 
 
@@ -27,7 +27,7 @@ def _get_users_with_invalid_image() -> list[model.User]:
 
     for user in users_with_img:
         upload = get_uploader("user", old_filename=user.image_url)
-        if isinstance(upload, FkUpload):
+        if isinstance(upload, FKUpload):
             filename = upload.old_filename
             storage = upload.storage
             if not isinstance(storage, files.Storage) or not filename:

@@ -11,16 +11,16 @@ from ckan.lib.files import base
 @pytest.mark.parametrize(
     ("type", "supported", "outcome"),
     [
-        ("text/csv", ["csv"], True),
-        ("text/csv", ["json", "text"], True),
+        ("text/csv", ["text/csv"], True),
+        ("text/csv", ["application/json", "text/csv"], True),
         ("text/csv", ["application/json", "text/plain", "text/csv", "image/png"], True),
-        ("text/csv", ["json", "image"], False),
+        ("text/csv", ["application/json", "image/png"], False),
         ("text/csv", ["application/csv"], False),
         ("text/csv", ["text/plain"], False),
         ("text/csv", ["non-csv"], False),
         ("text/csv", ["*"], True),
-        ("text/csv", ["*/csv"], True),
-        ("text/csv", ["csv/*"], False),
+        ("text/csv", ["image/png", "*"], True),
+        ("text/csv", ["csv/text"], False),
     ],
 )
 def test_is_supported_type(type: str, supported: Iterable[str], outcome: bool):
@@ -44,7 +44,9 @@ class TestStorage:
         storage = base.Storage({})
         storage.validate_content_type("text/csv")
 
-        storage = base.Storage({"supported_types": ["text", "json", "image/png"]})
+        storage = base.Storage(
+            {"supported_types": ["text/csv", "application/json", "image/png"]}
+        )
         storage.validate_content_type("text/csv")
         storage.validate_content_type("application/json")
         storage.validate_content_type("image/png")
@@ -79,6 +81,8 @@ class TestStorage:
         assert resp.headers["Content-type"] == info.content_type
         assert resp.headers["Content-disposition"] == f"attachment; filename={name}"
 
-        monkeypatch.setitem(ckan_config, "ckan.files.inline_content_types", ["image"])
+        monkeypatch.setitem(
+            ckan_config, "ckan.files.inline_content_types", ["image/png"]
+        )
         resp = storage.as_response(info)
         assert resp.headers["Content-disposition"] == f"inline; filename={name}"

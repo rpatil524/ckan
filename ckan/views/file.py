@@ -130,10 +130,13 @@ def public_download(storage_name: str, location: str) -> Response:
         return base.abort(403, "Storage is not public")
 
     location = files.Location(location)
-    data = files.FileData(
-        location,
-        size=storage.size(location),
-        content_type=storage.content_type(location),
-    )
+    try:
+        data = files.FileData(
+            location,
+            size=storage.size(location),
+            content_type=storage.content_type(location),
+        )
+    except files.exc.MissingFileError:
+        return base.abort(404)
 
     return _as_response(storage_name, data)

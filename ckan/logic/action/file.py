@@ -222,7 +222,7 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     else is controlled by storage. The same file may be accepted by one storage
     and rejected by another, depending on its configuration.
 
-    The action is way too powerful to use it directly. The recommended approach
+    This action is not intended to be used directly. The recommended approach
     is to register a different action for handling specific type of uploads and
     call the current action internally:
 

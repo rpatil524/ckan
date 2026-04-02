@@ -98,6 +98,7 @@ class TestFilesLoader:
             [
                 prefix.type,
                 prefix.max_size,
+                prefix.hashing_algorithm,
                 prefix.supported_types,
                 prefix.overwrite_existing,
                 prefix.name,

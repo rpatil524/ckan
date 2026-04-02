@@ -51,32 +51,42 @@ class TestPermissionOwns:
         )
 
 
+@pytest.mark.parametrize(
+    "action",
+    [
+        "permission_edit_file",
+        "permission_delete_file",
+        "permission_read_file",
+        "permission_download_file",
+    ],
+)
 @pytest.mark.usefixtures("non_clean_db")
-class BasePermission:
+class TestPermission:
     action: str
 
-    def test_anonymous_is_not_allowed(self, file: dict[str, Any]):
+    def test_anonymous_is_not_allowed(self, action: str, file: dict[str, Any]):
         """Anonymous user does not have permission."""
         with pytest.raises(tk.NotAuthorized):
-            tk.check_access(self.action, {"user": ""}, {"id": file["id"]})
+            tk.check_access(action, {"user": ""}, {"id": file["id"]})
 
     def test_authenticated_is_not_allowed(
-        self, user: dict[str, Any], file: dict[str, Any]
+        self, action: str, user: dict[str, Any], file: dict[str, Any]
     ):
         """Authenticated user does not have permission."""
         with pytest.raises(tk.NotAuthorized):
-            tk.check_access(self.action, {"user": user["name"]}, {"id": file["id"]})
+            tk.check_access(action, {"user": user["name"]}, {"id": file["id"]})
 
     def test_owner_is_allowed(
-        self, user: dict[str, Any], file_factory: types.TestFactory
+        self, action: str, user: dict[str, Any], file_factory: types.TestFactory
     ):
         """File owner has permission for owned file."""
         file = file_factory(user=user)
-        tk.check_access(self.action, {"user": user["name"]}, {"id": file["id"]})
+        tk.check_access(action, {"user": user["name"]}, {"id": file["id"]})
 
     @pytest.mark.ckan_config("ckan.files.owner.cascade_access", {})
     def test_owner_without_cascade_is_not_allowed(
         self,
+        action: str,
         user: dict[str, Any],
         file_factory: types.TestFactory,
         package_factory: types.TestFactory,
@@ -91,10 +101,11 @@ class BasePermission:
             owner_id=package["id"],
         )
         with pytest.raises(tk.NotAuthorized):
-            tk.check_access(self.action, {"user": user["name"]}, {"id": file["id"]})
+            tk.check_access(action, {"user": user["name"]}, {"id": file["id"]})
 
     def test_owner_with_cascade_is_allowed(
         self,
+        action: str,
         user: dict[str, Any],
         file_factory: types.TestFactory,
         package_factory: types.TestFactory,
@@ -108,23 +119,7 @@ class BasePermission:
             owner_type="package",
             owner_id=package["id"],
         )
-        tk.check_access(self.action, {"user": user["name"]}, {"id": file["id"]})
-
-
-class TestPermissionEdit(BasePermission):
-    action = "permission_edit_file"
-
-
-class TestPermissionDelete(BasePermission):
-    action = "permission_delete_file"
-
-
-class TestPermissionRead(BasePermission):
-    action = "permission_read_file"
-
-
-class TestPermissionDownload(BasePermission):
-    action = "permission_download_file"
+        tk.check_access(action, {"user": user["name"]}, {"id": file["id"]})
 
 
 @pytest.mark.usefixtures("non_clean_db")
@@ -155,12 +150,12 @@ class TestFileTrack:
         with pytest.raises(tk.NotAuthorized):
             tk.check_access("file_register", {"user": ""}, {"storage": "test"})
 
-    def test_authenticated_are_not_allowed(
-        self, user: dict[str, Any]
-    ):
+    def test_authenticated_are_not_allowed(self, user: dict[str, Any]):
         """Authenticated users are not allowed to register files."""
         with pytest.raises(tk.NotAuthorized):
-            tk.check_access("file_register", {"user": user["name"]}, {"storage": "test"})
+            tk.check_access(
+                "file_register", {"user": user["name"]}, {"storage": "test"}
+            )
 
 
 @pytest.mark.usefixtures("non_clean_db")
@@ -176,48 +171,38 @@ class TestFileSearch:
             tk.check_access("file_create", {"user": user["name"]}, {"storage": "test"})
 
 
+@pytest.mark.parametrize(
+    "action",
+    [
+        "file_delete",
+        "file_show",
+        "file_rename",
+        "file_pin",
+        "file_unpin",
+    ],
+)
 @pytest.mark.usefixtures("non_clean_db")
-class BaseOperation:
+class TestOperation:
     action: str
 
-    def test_anonymous_is_not_allowed(self, file: dict[str, Any]):
+    def test_anonymous_is_not_allowed(self, action: str, file: dict[str, Any]):
         """Anonymous users are not allowed to perform operation."""
         with pytest.raises(tk.NotAuthorized):
-            tk.check_access(self.action, {"user": ""}, {"id": file["id"]})
+            tk.check_access(action, {"user": ""}, {"id": file["id"]})
 
     def test_authenticated_is_not_allowed(
-        self, user: dict[str, Any], file: dict[str, Any]
+        self, action: str, user: dict[str, Any], file: dict[str, Any]
     ):
         """Authenticated users are not allowed to perform operation."""
         with pytest.raises(tk.NotAuthorized):
-            tk.check_access(self.action, {"user": user["name"]}, {"id": file["id"]})
+            tk.check_access(action, {"user": user["name"]}, {"id": file["id"]})
 
     def test_owner_is_allowed(
-        self, user: dict[str, Any], file_factory: types.TestFactory
+        self, action: str, user: dict[str, Any], file_factory: types.TestFactory
     ):
         """Owners users are allowed to perform operation."""
         file = file_factory(user=user)
-        tk.check_access(self.action, {"user": user["name"]}, {"id": file["id"]})
-
-
-class TestFileDelete(BaseOperation):
-    action = "file_delete"
-
-
-class TestFileShow(BaseOperation):
-    action = "file_show"
-
-
-class TestFileRename(BaseOperation):
-    action = "file_rename"
-
-
-class TestFilePin(BaseOperation):
-    action = "file_pin"
-
-
-class TestFileUnpin(BaseOperation):
-    action = "file_unpin"
+        tk.check_access(action, {"user": user["name"]}, {"id": file["id"]})
 
 
 @pytest.mark.usefixtures("non_clean_db")

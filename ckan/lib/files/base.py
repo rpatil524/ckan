@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import fnmatch
 import dataclasses
 import logging
-from collections.abc import Iterable
 from typing import Any, ClassVar
 
 import file_keeper as fk

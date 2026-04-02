@@ -8,7 +8,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     Mapped,
-    foreign,
     mapped_column,
     relationship,
 )

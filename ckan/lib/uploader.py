@@ -486,7 +486,7 @@ class FKUpload(object):
                     self.upload_file,
                 )
             except (files.exc.LargeUploadError, files.exc.ExistingFileError) as err:
-                raise logic.ValidationError({"upload": [str(err)]})
+                raise logic.ValidationError({self.file_field: [str(err)]})
 
             self.clear = True
 

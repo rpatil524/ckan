@@ -12,7 +12,7 @@ from ckan.tests.helpers import CKANCliRunner, call_action
 
 
 @pytest.fixture
-def with_temporal_storage(
+def with_temp_storage(
     reset_storages: Any,
     monkeypatch: pytest.MonkeyPatch,
     tmpdir: Any,
@@ -56,7 +56,7 @@ class TestFilesAdapters(object):
         assert "ckan.files.storage.NAME.initialize" in result.output
 
 
-@pytest.mark.usefixtures("clean_db", "with_temporal_storage", "with_extended_cli")
+@pytest.mark.usefixtures("clean_db", "with_temp_storage", "with_extended_cli")
 class TestStorageScan:
     def test_resources_scan(
         self,
@@ -133,7 +133,7 @@ class TestStorageScan:
         assert "Size: 42B" in result.output
 
 
-@pytest.mark.usefixtures("clean_db", "with_temporal_storage", "with_extended_cli")
+@pytest.mark.usefixtures("clean_db", "with_temp_storage", "with_extended_cli")
 class TestStorageTransfer:
     def test_copy_between_storages(
         self, cli: CKANCliRunner, faker: Faker, ckan_config: dict[str, Any]
@@ -252,7 +252,7 @@ class TestStorageTransfer:
         assert moved_result["storage"] == group.settings.name
 
 
-@pytest.mark.usefixtures("clean_db", "with_temporal_storage", "with_extended_cli")
+@pytest.mark.usefixtures("clean_db", "with_temp_storage", "with_extended_cli")
 class TestStorageRemoveFiles:
     def test_clean_registered(
         self,

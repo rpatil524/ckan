@@ -369,7 +369,7 @@ def file_create(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.validate(schema.file_register)
@@ -426,7 +426,7 @@ def file_register(
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 def _file_search(  # noqa: C901, PLR0912, PLR0915
@@ -498,9 +498,13 @@ def _file_search(  # noqa: C901, PLR0912, PLR0915
 
     stmt = stmt.limit(data_dict["rows"]).offset(data_dict["start"])
 
+    include_plugin_data = context.get("include_plugin_data", False)
+
     return {
         "count": total,
-        "results": [f.dictize(context) for f in context["session"].scalars(stmt)],
+        "results": [
+            f.dictize(include_plugin_data) for f in context["session"].scalars(stmt)
+        ],
     }
 
 
@@ -562,7 +566,7 @@ def file_delete(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.side_effect_free
@@ -588,7 +592,7 @@ def file_show(context: Context, data_dict: dict[str, Any]) -> ActionResult.FileS
     if not fileobj:
         raise logic.NotFound("file")
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.validate(schema.file_rename)
@@ -621,7 +625,7 @@ def file_rename(context: Context, data_dict: dict[str, Any]) -> ActionResult.Fil
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.validate(schema.file_pin)
@@ -652,7 +656,7 @@ def file_pin(context: Context, data_dict: dict[str, Any]) -> ActionResult.FilePi
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.validate(schema.file_unpin)
@@ -678,7 +682,7 @@ def file_unpin(context: Context, data_dict: dict[str, Any]) -> ActionResult.File
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.validate(schema.ownership_transfer)
@@ -775,7 +779,7 @@ def file_ownership_transfer(
     if not context.get("defer_commit"):
         context["session"].commit()
 
-    return fileobj.dictize(context)
+    return fileobj.dictize(context.get("include_plugin_data", False))
 
 
 @logic.side_effect_free

@@ -7,7 +7,7 @@ from ckan.tests.helpers import call_action
 
 
 @pytest.fixture
-def with_temporal_storage(
+def with_temp_storage(
     reset_storages: Any,
     monkeypatch: pytest.MonkeyPatch,
     tmpdir: Any,
@@ -19,7 +19,7 @@ def with_temporal_storage(
     reset_storages()
 
 
-@pytest.mark.usefixtures("clean_db", "with_extended_cli", "with_temporal_storage")
+@pytest.mark.usefixtures("clean_db", "with_extended_cli", "with_temp_storage")
 @pytest.mark.ckan_config("ckan.upload.user.mimetypes", ["*"])
 class TestUserClean:
     def test_output_if_there_are_not_invalid_users(self, cli):

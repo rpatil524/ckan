@@ -14,7 +14,11 @@ def _owner_allows(
     owner_id: str,
     operation: types.FileOwnerOperation,
 ) -> bool:
-    """Decide if user is allowed to perform operation on the owner."""
+    """Decide if user is allowed to perform operation based on the owner.
+
+    This includes transfering files to owner and listing all the files that
+    belongs to the owner.
+    """
     for plugin in p.PluginImplementations(p.IFiles):
         result = plugin.files_owner_allows(context, owner_type, owner_id, operation)
         if result is not None:
@@ -39,7 +43,11 @@ def _file_allows(
     file: model.File,
     operation: types.FileOperation,
 ) -> bool:
-    """Decide if user is allowed to perform operation on the file."""
+    """Decide if user is allowed to perform operation on the file.
+
+    This includes operations that affect only the given file: reading, removing
+    or making modification.
+    """
     for plugin in p.PluginImplementations(p.IFiles):
         result = plugin.files_file_allows(context, file, operation)
         if result is not None:

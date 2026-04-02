@@ -260,7 +260,14 @@ def remove_whitespace(value: Any, context: Context) -> Any:
 
 
 def parse_filesize(value: str | int):
-    """Convert human-readable filesize into an integer."""
+    """Convert human-readable filesize into an integer.
+
+    Example:
+    >>> assert parse_filesize("10GiB") == 10_737_418_240
+    >>> assert parse_filesize("10b") == 10
+    >>> assert parse_filesize("1") == 1
+    >>> assert parse_filesize("1.5 KB") == 1500
+    """
     if isinstance(value, int):
         return value
 

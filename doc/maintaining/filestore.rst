@@ -673,7 +673,7 @@ access to file's metadata.
 
 Permission checks can be bypassed when using another download view
 ``trusted_download``. It works with JWT tokens and can be used to create
-temporal URL that gives unrestricted access to file.
+temporary URL that gives unrestricted access to file.
 
 To use it, create a JWT token that contain file's ID inside ``sub`` claim and
 hardcoded value ``trusted_download`` inside ``aud`` claim. It's recommended to

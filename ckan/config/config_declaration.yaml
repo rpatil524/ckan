@@ -1489,7 +1489,7 @@ groups:
             configuration exception during startup because it is too broad and
             may lead to unintentional data leaks. Files may be temporarily
             owned by user during resource creation and cascade access rules
-            with global ``user`` exposes such temporal files to anyone who can
+            with global ``user`` exposes such temporary files to anyone who can
             read user's profile. It's still allowed to grant cascade access to
             user's files using specific storage. For example, ``user:avatars``
             or ``user:public_files``.

@@ -84,6 +84,31 @@ class Flag(enum.Flag):
     with this flag will be copied into Flask's config object during
     initialization of the application.
 
+    nullable: this option will be set to `None` if it's missing from the config
+    file. It's preferable to keep the same type of the option's value and avoid
+    nullable options. But in specific situations it may be more convenient to
+    express missing value as `None` rather than default value for the type. For
+    example, boolean options normally have values `True` and `False`, where
+    `False` is the default value used when option is missing. Because of it,
+    system does not sees the difference between explicitly disabled
+    option(`False`) and indeterminate state(missing value). To handle this
+    indeterminate state differently, use nullable options and apply additional
+    logic when the value of option is set to `None` instead of assuming that
+    user does not want this option enabled. Nullable flag affects only missing
+    options: if option exists in the config file but has empty value, it will
+    pass standard validation with initial value `''`(empty string). To omit
+    option from the automatically generated config file, enable its `commented`
+    flag in addition to `nullable`. Also, any option that has no `type` and
+    `validators` is implicitly nullable and there is no need to specify this
+    flag unless ability to accept `None` is critical for the logic of
+    application and must be highlighted. There is no guarantees related to
+    behavior of option that has `nullable` and `required` flags enabled
+    simultaneously: At the moment this combination means that option may be set
+    to none, but any other falsy value will be rejected. But this is considered
+    a coincidence and may change in future without any anouncement, so do not
+    rely on this behavior and prefer to set `ignore_missing not_empty`
+    validators on the option instead.
+
     reserved_*(01-10): these flags are added for extension developers. CKAN
     doesn't treat them specially, neither includes them in groups, like
     `not_safe`/`not_iterable`. These flags are completely ignored by CKAN. If
@@ -105,13 +130,14 @@ class Flag(enum.Flag):
     extensions are trying to use the same reserved flag.
 
     """
-    ignored = enum.auto()
-    experimental = enum.auto()
-    internal = enum.auto()
-    required = enum.auto()
-    editable = enum.auto()
     commented = enum.auto()
+    editable = enum.auto()
+    experimental = enum.auto()
     flask = enum.auto()
+    ignored = enum.auto()
+    internal = enum.auto()
+    nullable = enum.auto()
+    required = enum.auto()
 
     reserved_01 = enum.auto()
     reserved_02 = enum.auto()
@@ -338,6 +364,9 @@ class Option(SectionMixin, Generic[T]):
         validators = self.validators
         if self.has_flag(Flag.required) and "not_empty" not in validators:
             validators = f"not_empty {validators}"
+
+        if self.has_flag(Flag.nullable) and "ignore_missing" not in validators:
+            validators = f"ignore_missing {validators}"
 
         return validators
 

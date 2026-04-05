@@ -8,7 +8,6 @@ import logging
 from collections import OrderedDict
 from typing import (
     Any,
-    Container,
     Dict,
     Iterator,
     List,
@@ -16,7 +15,6 @@ from typing import (
     Set,
     Union,
     TYPE_CHECKING,
-    cast,
 )
 
 from .key import Key, Pattern, Wildcard
@@ -137,6 +135,9 @@ class Declaration:
                 )
                 config[str(key)] = config[info.legacy_key]
 
+            elif info.has_flag(Flag.nullable):
+                config[str(key)] = None
+
             else:
                 config[str(key)] = info.default
 
@@ -156,7 +157,7 @@ class Declaration:
             if v is df.missing:
                 continue
 
-            if k not in cast(Container[str], self):
+            if k not in self:
                 # it either __extra or __junk
                 continue
 
@@ -273,29 +274,33 @@ class Declaration:
         return option
 
     def declare_bool(
-            self, key: Key, default: Optional[bool] = False) -> Option[bool]:
+            self, key: Key, default: bool = False) -> Option[bool]:
         """Declare boolean option.
         """
         option = self.declare(key, bool(default))
         option.set_validators("boolean_validator")
         return option
 
-    def declare_int(self, key: Key, default: Optional[int]) -> Option[int]:
+    def declare_int(self, key: Key, default: int | None = None) -> Option[int]:
         """Declare numeric option.
         """
+        if default is None:
+            default = 0
         option = self.declare(key, default)
         option.set_validators("convert_int")
         return option
 
     def declare_list(
-            self, key: Key, default: Optional[list[Any]]) -> Option[list[Any]]:
+            self, key: Key, default: list[T] | None = None) -> Option[list[T]]:
         """Declare option that accepts space-separated list of values.
         """
+        if default is None:
+            default = []
         option = self.declare(key, default)
         option.set_validators("as_list")
         return option
 
-    def declare_dynamic(self, key: Key, default: Any = None) -> Option[Any]:
+    def declare_dynamic(self, key: Key, default: T = None) -> Option[T]:
         """Declare dynamic option using a Key with `<name>` segment(surrounded
         with angles).
 
@@ -308,7 +313,7 @@ class Declaration:
                 for fragment in key
             ]
         )
-        option: Option[Any] = self.declare(key, default)
+        option = self.declare(key, default)
         return option
 
     def annotate(self, text: str) -> Annotation:

@@ -75,6 +75,39 @@ class TestDeclaration:
         _, errors = decl.validate({})
         assert key in errors
 
+    def test_nullable_default(self):
+        """Nullable flag sets missing option to None, but processes any other value."""
+        decl = Declaration()
+        key = "test.nullable.flag.allows_none"
+        decl.declare_bool(key, False).set_flag(Flag.nullable)
+
+        cfg = {}
+        decl.make_safe(cfg)
+        decl.normalize(cfg)
+        assert cfg == {key: None}
+
+        cfg = {key: ''}
+        decl.make_safe(cfg)
+        decl.normalize(cfg)
+        assert cfg == {key: False}
+
+    def test_nullable_validation(self):
+        """Nullable flag allows None value, but does not allow other invalid values."""
+        decl = Declaration()
+        key = "test.nullable.flag.allows_none"
+        decl.declare_int(key).set_flag(Flag.nullable)
+
+        data, errors = decl.validate({key: None})
+        assert not data
+        assert not errors
+
+        data, errors = decl.validate({key: '0'})
+        assert data == {key: 0}
+        assert not errors
+
+        data, errors = decl.validate({key: 'test'})
+        assert key in errors
+
     def test_setup(self, ckan_config):
         decl = Declaration()
         decl.setup()

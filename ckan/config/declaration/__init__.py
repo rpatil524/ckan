@@ -15,6 +15,7 @@ from typing import (
     Set,
     Union,
     TYPE_CHECKING,
+    cast,
 )
 
 from .key import Key, Pattern, Wildcard
@@ -122,10 +123,19 @@ class Declaration:
         """
 
         for key in self.iter_options(exclude=Flag.not_safe()):
-            if key in config or isinstance(key, Pattern):
+            if isinstance(key, Pattern):
                 continue
 
             info = self[key]
+
+            # typechecker cannot detect that key can be used for dictionary
+            # access without typecasting
+            key = cast(Any, key)
+            is_nullable = info.has_flag(Flag.nullable)
+            if key in config:
+                if is_nullable and config[key] == info.null_value:
+                    config[key] = None
+                continue
 
             if info.legacy_key and info.legacy_key in config:
                 log.warning(
@@ -135,7 +145,7 @@ class Declaration:
                 )
                 config[str(key)] = config[info.legacy_key]
 
-            elif info.has_flag(Flag.nullable):
+            elif is_nullable:
                 config[str(key)] = None
 
             else:

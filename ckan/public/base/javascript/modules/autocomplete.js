@@ -65,47 +65,50 @@ this.ckan.module('autocomplete', function (jQuery) {
       // Different keys are required depending on whether the select is
       // tags or generic completion.
       if (!this.el.is('select')) {
-        if (this.options.tags) {
-          settings.tags = this._onQuery;
+        // Create custom data adapter for Select2 4.0
+        // See https://select2.org/upgrading/migrating-from-35#custom-data-adapters-instead-of-query
+        var module = this;
+        var ArrayData = $.fn.select2.amd.require('select2/data/array');
+        var Utils = $.fn.select2.amd.require('select2/utils');
 
-          // Disable creating new tags
-          if (!this.options.createtags) {
-            settings.createSearchChoice = function(params) {
-              return undefined;
+        function CKANDataAdapter ($element, options) {
+          CKANDataAdapter.__super__.constructor.call(this, $element, options);
+        }
+
+        Utils.Extend(CKANDataAdapter, ArrayData);
+
+        CKANDataAdapter.prototype.query = function (params, callback) {
+          module._onQuery({
+            term: params.term,
+            callback: callback
+          });
+        };
+
+        CKANDataAdapter.prototype.current = function (callback) {
+          module.formatInitialValue(this.$element, function(formatted) {
+            // Ensure we always return an array for Select2 4.0
+            if (formatted && !Array.isArray(formatted)) {
+              formatted = [formatted];
             }
+            callback(formatted || []);
+          });
+        };
+
+        settings.dataAdapter = CKANDataAdapter;
+        if ( this.options.tags ){
+          var Tags = $.fn.select2.amd.require('select2/data/tags');
+          settings.dataAdapter = Utils.Decorate(settings.dataAdapter, Tags)
+          settings.multiple = "multiple"
+      }
+
+        // Disable creating new tags
+        if (!this.options.createtags) {
+          settings.createTag = function (params) {
+            return undefined;
           }
-        } else {
-          // Create custom data adapter for Select2 4.0
-          // See https://select2.org/upgrading/migrating-from-35#custom-data-adapters-instead-of-query
-          var module = this;
-          var ArrayData = $.fn.select2.amd.require('select2/data/array');
-          var Utils = $.fn.select2.amd.require('select2/utils');
-
-          function CKANDataAdapter ($element, options) {
-            CKANDataAdapter.__super__.constructor.call(this, $element, options);
-          }
-
-          Utils.Extend(CKANDataAdapter, ArrayData);
-
-          CKANDataAdapter.prototype.query = function (params, callback) {
-            module._onQuery({
-              term: params.term,
-              callback: callback
-            });
-          };
-
-          CKANDataAdapter.prototype.current = function (callback) {
-            module.formatInitialValue(this.$element, function(formatted) {
-              // Ensure we always return an array for Select2 4.0
-              if (formatted && !Array.isArray(formatted)) {
-                formatted = [formatted];
-              }
-              callback(formatted || []);
-            });
-          };
-
-          settings.dataAdapter = CKANDataAdapter;
-          settings.createTag = this.formatTerm;
+        }
+        else{
+            settings.createTag = this.formatTerm;
         }
       }
       else {
@@ -279,7 +282,15 @@ this.ckan.module('autocomplete', function (jQuery) {
     },
 
     formatTerm: function (term) {
+      if (typeof term === 'object') {
+        term = term.term;
+      }
       term = jQuery.trim(term || '');
+
+      // Don't create tag from empty terms
+      if (term === '') {
+        return
+      }
 
       // Need to replace comma with a unicode character to trick the plugin
       // as it won't split this into multiple items.

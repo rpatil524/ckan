@@ -790,57 +790,28 @@ def _delete_activities_with_keep(
     """Delete activities in range but keep N most recent per object_id.
     """
 
-    # Order activities by timestamp within each object_id and rank them
-    # (i.e. number them).
-    filtered = query.subquery("filtered")
-    windowed = (
-        sa.select(
-            filtered.c.id,
-            sa.func.row_number()
-            .over(
-                partition_by=filtered.c.object_id,
-                order_by=sa.desc(
-                    sa.func.coalesce(
-                        filtered.c.timestamp,
-                        sa.literal(
-                            datetime.datetime.min,
-                            type_=model_activity.Activity.timestamp.type,
-                        ),
-                    )
-                ),
-            )
-            .label("per_obj_order"),
-        )
-        .cte("windowed")
+    # 1. Order activities by timestamp within each object_id and rank them
+    # 2. Delete activities where the ranked value is higher than the provided limit
+    sql = sa.text("""
+    with _windowed as (
+       select id, row_number() over (
+            partition by object_id order by timestamp desc
+        ) as per_obj_order
+       from activity
     )
+    delete from activity
+      using _windowed
+      where activity.id = _windowed.id
+      and per_obj_order > :keep_count
+    """)
 
-    # Get the ids of activities where rank is bigger than keep
-    # (.e.g if `keep` is 5, activities from position 6 onward)
-    ids_to_delete = (
-        sa.select(windowed.c.id)
-        .where(windowed.c.per_obj_order > keep)
-    )
-
-    count = session.execute(
-        sa.select(sa.func.count()).select_from(ids_to_delete.subquery())
-    ).scalar()
+    result = session.execute(sql, {"keep_count": keep})
+    count = result.rowcount
 
     if count == 0:
         return {
             "message": tk._("No activities found matching the specified criteria.")
         }
-
-    # Delete activities
-    session.execute(
-        sa.delete(model_activity.ActivityDetail).where(
-            detail_table.c.activity_id.in_(ids_to_delete)
-        )
-    )
-    result = session.execute(
-        sa.delete(model_activity.Activity).where(
-            model_activity.Activity.id.in_(ids_to_delete)
-        )
-    )
 
     if commit:
         session.commit()

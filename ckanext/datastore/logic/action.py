@@ -24,8 +24,6 @@ log = logging.getLogger(__name__)
 _get_or_bust = logic.get_or_bust
 _validate = ckan.lib.navl.dictization_functions.validate
 
-REQUIRED_ALLOW_RESOURCES = ['_table_metadata']
-
 RESOURCE_LAST_MODIFIED_SETTLE_TIME = timedelta(seconds=15)
 
 
@@ -701,7 +699,7 @@ def datastore_search(context: Context, data_dict: dict[str, Any]):
     res_id = data_dict['resource_id']
 
     if data_dict['resource_id'] not in p.toolkit.config.get(
-            'ckan.datastore.allow_table_search') + REQUIRED_ALLOW_RESOURCES:
+            'ckan.datastore.public_table_search'):
         res_exists, real_id = backend.resource_id_from_alias(res_id)
         # Resource only has to exist in the datastore (because it could be an
         # alias)

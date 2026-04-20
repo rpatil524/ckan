@@ -214,7 +214,7 @@ class TestDatastoreRecordsDelete(object):
 
         # job scheduled to update last_modified
         assert job_from_id(
-            f"{resource.id} datastore patch last_modified")
+            f"{resource.id}_datastore-patch-last_modified")
 
     def test_delete_records_required_filters(self):
         resource = factories.Resource()

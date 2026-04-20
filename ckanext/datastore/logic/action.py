@@ -803,7 +803,7 @@ def _cancel_patch_resource_last_modified(resource_id: str):
     ''' Remove any existing scheduled job to patch resource
     last_modified.
     '''
-    job_id = f'{resource_id} datastore patch last_modified'
+    job_id = f'{resource_id}_datastore-patch-last_modified'
     try:
         existing_job = p.toolkit.job_from_id(job_id)
     except KeyError:
@@ -818,7 +818,7 @@ def _schedule_patch_resource_last_modified(resource_id: str):
     datastore_create, datastore_upsert and/or datastore_delete.
     '''
     last_modified = datetime.now(timezone.utc)
-    job_id = f'{resource_id} datastore patch last_modified'
+    job_id = f'{resource_id}_datastore-patch-last_modified'
 
     _cancel_patch_resource_last_modified(resource_id)
     p.toolkit.get_job_queue().enqueue_in(

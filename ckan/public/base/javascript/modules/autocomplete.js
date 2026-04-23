@@ -69,7 +69,14 @@ this.ckan.module('autocomplete', function (jQuery) {
           var Tags = $.fn.select2.amd.require('select2/data/tags');
           settings.dataAdapter = Utils.Decorate(settings.dataAdapter, Tags)
           settings.multiple = "multiple"
-      }
+        }
+
+        // minimum input length is not applied when custom data adapter is user
+        if (this.options.minimumInputLength > 0) {
+          var Utils = $.fn.select2.amd.require('select2/utils');
+          var MinimumInputLength = $.fn.select2.amd.require('select2/data/minimumInputLength');
+          settings.dataAdapter = Utils.Decorate(settings.dataAdapter, MinimumInputLength)
+        }
 
         // Disable creating new tags
         if (!this.options.createtags) {

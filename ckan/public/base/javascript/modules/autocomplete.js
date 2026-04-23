@@ -4,6 +4,7 @@
  * source   - A url pointing to an API autocomplete endpoint.
  * interval - The interval between requests in milliseconds (default: 300).
  * tags     - Boolean attribute if true will create a tag input.
+ * createtags - Boolean attribute if false will not allow creating new tags
  * key      - A string of the key you want to be the form value to end up on
  *            from the ajax returned results
  * label    - A string of the label you want to appear within the dropdown for

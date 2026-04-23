@@ -29,7 +29,6 @@ this.ckan.module('autocomplete', function (jQuery) {
       tokensep: ',',
       interval: 300,
       dropdownClass: '',
-      containerClass: '',
       minimumInputLength: 0
     },
 
@@ -57,7 +56,6 @@ this.ckan.module('autocomplete', function (jQuery) {
           searching: this.formatSearching,
         },
         dropdownCssClass: this.options.dropdownClass,
-        containerCssClass: this.options.containerClass,
         tokenSeparators: this.options.tokensep.split(''),
         minimumInputLength: this.options.minimumInputLength
       };

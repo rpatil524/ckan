@@ -3,7 +3,6 @@
  *
  * source   - A url pointing to an API autocomplete endpoint.
  * interval - The interval between requests in milliseconds (default: 300).
- * items    - The max number of items to display (default: 10)
  * tags     - Boolean attribute if true will create a tag input.
  * key      - A string of the key you want to be the form value to end up on
  *            from the ajax returned results
@@ -24,7 +23,6 @@ this.ckan.module('autocomplete', function (jQuery) {
       createtags: true,
       key: false,
       label: false,
-      items: 10,
       source: null,
       tokensep: ',',
       interval: 300,

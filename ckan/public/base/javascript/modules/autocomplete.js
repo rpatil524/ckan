@@ -118,6 +118,11 @@ this.ckan.module('autocomplete', function (jQuery) {
          }
       }
 
+      // Add placeholder to select2 component if its given on the element
+      if ( this.el.attr('placeholder') ) {
+        settings.placeholder = this.el.attr('placeholder');
+      }
+
       // clean up rendered select2 from htmx back/forward navigation
       this.el.removeClass('select2-hidden-accessible')
       this.el.removeAttr('data-select2-id')

@@ -134,6 +134,9 @@ describe('ckan.modules.AutocompleteModule()', {testIsolation: false}, function (
 
     it('should allow a changing minimumInputLength', function () {
       cy.stub(this.module, 'dataAdapter').returns({})
+      var Utils = this.select2.amd.require('select2/utils');
+      cy.stub(Utils, 'Decorate').returns({})
+      
       this.module.options.minimumInputLength = 3;
       this.module.setupAutoComplete();
 

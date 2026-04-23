@@ -255,8 +255,14 @@ this.ckan.module('autocomplete', function (jQuery) {
      * Returns a text string.
      */
     formatNoMatches: function () {
-      var term = this._lastTerm || null;
-      return !term ? this._('Start typing…') : this._('No matches found');
+      // hack to detect if we are searching something for autocomplete api
+      if ( this.options.source ) {
+        var term = this._lastTerm || null;
+        return !term ? this._('Start typing…') : this._('No matches found');
+      }
+      else {
+        return this._('No matches found')
+      }
     },
 
     /* Formatter used by the select2 plugin that returns a string when the

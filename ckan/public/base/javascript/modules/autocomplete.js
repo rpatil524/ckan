@@ -71,6 +71,12 @@ this.ckan.module('autocomplete', function (jQuery) {
           var Tags = $.fn.select2.amd.require('select2/data/tags');
           settings.dataAdapter = Utils.Decorate(settings.dataAdapter, Tags)
           settings.multiple = "multiple"
+
+          // tokenizer is not applied when custom data adapter is used
+          if (settings.tokenSeparators != null) {
+            var Tokenizer = $.fn.select2.amd.require('select2/data/tokenizer');
+            settings.dataAdapter = Utils.Decorate(settings.dataAdapter, Tokenizer);
+          }
         }
 
         // minimum input length is not applied when custom data adapter is used
@@ -78,12 +84,6 @@ this.ckan.module('autocomplete', function (jQuery) {
           var Utils = $.fn.select2.amd.require('select2/utils');
           var MinimumInputLength = $.fn.select2.amd.require('select2/data/minimumInputLength');
           settings.dataAdapter = Utils.Decorate(settings.dataAdapter, MinimumInputLength)
-        }
-
-        // tokenizer is not applied when custom data adapter is used
-        if (settings.tokenSeparators != null) {
-          var Tokenizer = $.fn.select2.amd.require('select2/data/tokenizer');
-          settings.dataAdapter = Utils.Decorate(settings.dataAdapter, Tokenizer);
         }
 
         // Disable creating new tags

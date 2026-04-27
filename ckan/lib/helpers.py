@@ -868,35 +868,13 @@ def _link_to(text: str, *args: Any, **kwargs: Any) -> Markup:
     cls = _link_class(kwargs)
     title = kwargs.pop('title', kwargs.pop('title_', None))
 
-    label = text
-    if inner_span:
-        label = dom_tags.span(text)
-    elif icon:
-        label = " " + label
+    link = dom_tags.a(href=url_for(*args, **kwargs), cls=cls, title=title)
 
     if icon:
+        link.add(dom_tags.i(cls=f"fa fa-{icon}"))
 
-        icon = dom_tags.i(
-            cls=f"fa fa-{icon}"
-        )
-
-        out = dom_tags.a(
-            href=url_for(*args, **kwargs),
-            cls=cls,
-            title=title
-        )
-
-        out.add(icon, label)  # type: ignore
-
-    else:
-        out = dom_tags.a(
-            label,
-            href=url_for(*args, **kwargs),
-            cls=cls,
-            title=title
-        )
-
-    return literal(str(out))
+    link.add(dom_tags.span(text) if inner_span else f"{text}")
+    return literal(link)
 
 
 def _preprocess_dom_attrs(attrs: dict[str, Any]) -> dict[str, Any]:

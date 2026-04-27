@@ -871,9 +871,10 @@ def _link_to(text: str, *args: Any, **kwargs: Any) -> Markup:
     link = dom_tags.a(href=url_for(*args, **kwargs), cls=cls, title=title)
 
     if icon:
-        link.add(dom_tags.i(cls=f"fa fa-{icon}"))
+        link.add(dom_tags.i(cls=f"fa fa-{icon}"))   # type: ignore
 
-    link.add(dom_tags.span(text) if inner_span else f"{text}")
+    link.add(dom_tags.span(text) if inner_span else f"{text}")  # type: ignore
+
     return literal(link)
 
 

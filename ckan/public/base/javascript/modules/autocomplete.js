@@ -28,6 +28,7 @@ this.ckan.module('autocomplete', function (jQuery) {
       tokensep: ',',
       interval: 300,
       dropdownClass: '',
+      containerClass: '',
       minimumInputLength: 0
     },
 
@@ -56,7 +57,8 @@ this.ckan.module('autocomplete', function (jQuery) {
         },
         dropdownCssClass: this.options.dropdownClass,
         tokenSeparators: this.options.tokensep.split(''),
-        minimumInputLength: this.options.minimumInputLength
+        minimumInputLength: this.options.minimumInputLength,
+        selectionCssClass: this.options.containerClass
       };
 
       // Different keys are required depending on whether the select is

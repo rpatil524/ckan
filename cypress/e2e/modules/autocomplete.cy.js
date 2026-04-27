@@ -70,6 +70,7 @@ describe('ckan.modules.AutocompleteModule()', {testIsolation: false}, function (
       expect(this.select2).to.be.calledWith({
         width: 'resolve',
         dropdownCssClass: '',
+        selectionCssClass: '',
         language: {
           noResults: this.module.formatNoMatches,
           inputTooShort: this.module.formatInputTooShort,
@@ -96,6 +97,7 @@ describe('ckan.modules.AutocompleteModule()', {testIsolation: false}, function (
       expect(this.select2).to.calledWith({
         width: 'resolve',
         dropdownCssClass: '',
+        selectionCssClass: '',
         language: {
           noResults: this.module.formatNoMatches,
           inputTooShort: this.module.formatInputTooShort,
@@ -119,6 +121,30 @@ describe('ckan.modules.AutocompleteModule()', {testIsolation: false}, function (
       expect(this.select2).to.be.calledWith({
         width: 'resolve',
         dropdownCssClass: 'tags',
+        selectionCssClass: '',
+        language: {
+          noResults: this.module.formatNoMatches,
+          inputTooShort: this.module.formatInputTooShort,
+          searching: this.module.formatSearching,
+        },
+        templateResult: this.module.templateResult,
+        createTag: this.module.formatTerm,
+        dataAdapter: {},
+        tokenSeparators: [','],
+        minimumInputLength: 0
+      });
+    });
+
+    it('should allow a custom css class to be added to the container', function () {
+      cy.stub(this.module, 'dataAdapter').returns({})
+      this.module.options.containerClass = 'tags';
+      this.module.setupAutoComplete();
+
+      expect(this.select2).to.be.called;
+      expect(this.select2).to.be.calledWith({
+        width: 'resolve',
+        dropdownCssClass: '',
+        selectionCssClass: 'tags',
         language: {
           noResults: this.module.formatNoMatches,
           inputTooShort: this.module.formatInputTooShort,
@@ -136,7 +162,7 @@ describe('ckan.modules.AutocompleteModule()', {testIsolation: false}, function (
       cy.stub(this.module, 'dataAdapter').returns({})
       var Utils = this.select2.amd.require('select2/utils');
       cy.stub(Utils, 'Decorate').returns({})
-      
+
       this.module.options.minimumInputLength = 3;
       this.module.setupAutoComplete();
 
@@ -144,6 +170,7 @@ describe('ckan.modules.AutocompleteModule()', {testIsolation: false}, function (
       expect(this.select2).to.be.calledWith({
         width: 'resolve',
         dropdownCssClass: '',
+        selectionCssClass: '',
         language: {
           noResults: this.module.formatNoMatches,
           inputTooShort: this.module.formatInputTooShort,

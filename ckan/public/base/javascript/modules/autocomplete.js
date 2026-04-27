@@ -71,7 +71,7 @@ this.ckan.module('autocomplete', function (jQuery) {
           settings.multiple = "multiple"
         }
 
-        // minimum input length is not applied when custom data adapter is user
+        // minimum input length is not applied when custom data adapter is used
         if (this.options.minimumInputLength > 0) {
           var Utils = $.fn.select2.amd.require('select2/utils');
           var MinimumInputLength = $.fn.select2.amd.require('select2/data/minimumInputLength');
